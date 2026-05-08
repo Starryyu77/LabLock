@@ -1,6 +1,7 @@
 # LabLock
 .lablock/state/
 .lablock/cache/
+.lablock/dashboard/
 .git/lablock-commit-meta.json
 
 # Dependencies

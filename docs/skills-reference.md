@@ -19,6 +19,7 @@ LabLock skills 分两类：
 | 目标 | 应使用 |
 |---|---|
 | 不知道该用哪个 LabLock skill | `/lab-advice` |
+| 打开、刷新或填充图形实验看板 | `/lab-dashboard` |
 | 新科研仓库接入 LabLock | `/lab-init` |
 | 已有科研仓库非破坏性接入 | `/lab-migrate` |
 | 更新本机安装的 LabLock | `/lab-update` |
@@ -117,6 +118,41 @@ LabLock skills 分两类：
 - `/lab-plan` 规划方向。
 - `/lab-plan-exp` 设计第一个实验。
 - `/lab-exp-init` 创建第一个受控实验。
+
+### `/lab-dashboard`
+
+**作用**：打开、刷新或填充图形实验看板。
+
+**何时使用**：
+
+- 用户想看当前仓库的实验看板。
+- 用户想把一个新实验或子实验加入看板。
+- 用户想用图形方式理解多个实验线的规划、进度和下一步。
+
+**不要何时使用**：
+
+- 仓库还没有接入 LabLock。新仓库用 `/lab-init`，旧仓库用 `/lab-migrate`。
+- 用户只有模糊想法，还没形成具体实验。先用 `/lab-plan-exp`。
+- 想直接改生成后的 HTML。看板是派生物，应从实验文件刷新。
+
+**会做什么**：
+
+- 运行 `lablock dashboard --json` 读取当前实验状态。
+- 运行 `lablock dashboard --open` 生成并打开 `.lablock/dashboard/index.html`。
+- 当用户要添加实验时，收集缺失字段并运行 `lablock exp-init` 创建真实 experiment node。
+- 创建后重新生成看板。
+
+**主要输出**：
+
+- `.lablock/dashboard/data.json`。
+- `.lablock/dashboard/index.html`。
+- 必要时新增 `experiments/<exp>-<shortname>/` 和 `.lablock/locks/<exp>.scope.lock`。
+
+**下一步**：
+
+- 审阅看板。
+- 提交新实验节点。
+- 用 `/lab-exp-start` 创建实验分支。
 
 ### `/lab-migrate`
 

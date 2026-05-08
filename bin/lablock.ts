@@ -17,7 +17,8 @@ import { CommitMetaSchema } from '../lib/types.ts';
 import { fileHash, readLock, verifyConfigLayer, verifyFilesLayer, writeLock } from '../lib/lock.ts';
 import { readFrontmatter, writeFrontmatter } from '../lib/frontmatter.ts';
 import { GitHubApiError, branchProtectionPayload, currentRepo, getBranchProtection, getBranchRules, isAuthenticated, isGhAvailable, putBranchProtection } from '../lib/gh.ts';
-import { fail, parseScalar } from './_util.ts';
+import { collectDashboardData, openDashboardFile, writeDashboard } from '../lib/dashboard.ts';
+import { fail, jsonOut, parseScalar } from './_util.ts';
 import { pathExists } from '../lib/fs-util.ts';
 
 const installRoot = join(dirname(fileURLToPath(import.meta.url)), '..');
@@ -1140,6 +1141,30 @@ program.command('version').action(async () => {
 program.command('next-exp-id').action(async () => console.log(await nextExpId()));
 
 program.command('doctor').action(async () => doctor().catch(fail));
+
+program.command('dashboard')
+  .description('Generate a static experiment planning and progress dashboard')
+  .option('--out <dir>', 'output directory', PATHS.DASHBOARD_DIR)
+  .option('--json', 'print dashboard JSON instead of writing files')
+  .option('--open', 'open the generated HTML dashboard in the default browser')
+  .option('--no-html', 'write data.json without index.html')
+  .action(async (opts) => {
+    try {
+      if (opts.json) {
+        jsonOut(await collectDashboardData());
+        return;
+      }
+      const result = await writeDashboard({ outDir: opts.out, html: opts.html });
+      console.log(`Dashboard data written: ${result.dataPath}`);
+      if (result.htmlPath) console.log(`Dashboard HTML written: ${result.htmlPath}`);
+      if (opts.open) {
+        if (!result.htmlPath) throw new Error('--open requires HTML output; remove --no-html.');
+        console.log(`Dashboard opened: ${await openDashboardFile(result.htmlPath)}`);
+      }
+    } catch (error) {
+      fail(error);
+    }
+  });
 
 program.command('init-project')
   .option('--name <name>', 'project name', process.cwd().split('/').at(-1))

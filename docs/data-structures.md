@@ -16,3 +16,15 @@ Each experiment lock records:
 ## Change Index
 
 `.lablock/state/change-index.jsonl` maps `chg-XXXXXXXX` IDs to commits. It is append-only and gitignored.
+
+## Dashboard
+
+`lablock dashboard` generates a static experiment board from existing LabLock files:
+
+- source: `experiments/*/hypothesis.md`
+- source: `experiments/*/results.md`
+- source: `.lablock/locks/*.scope.lock`
+- output: `.lablock/dashboard/data.json`
+- output: `.lablock/dashboard/index.html`
+
+The dashboard does not introduce a second database. Edit the experiment files, rerun `lablock dashboard`, and the board refreshes from the file-backed source of truth.

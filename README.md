@@ -115,6 +115,7 @@ lablock init-project --name="My Project" --modules=gpu,data,lit --ci-mode=warn-o
 ```bash
 lablock doctor
 lablock update
+lablock dashboard
 lablock next-exp-id
 lablock exp-init baseline --hypothesis "..." --config optimizer.lr=0.001 --stage
 lablock exp-start --exp=exp-001
@@ -130,6 +131,29 @@ lablock-frontmatter-check --strict
 lablock-skill-lint
 lablock-coverage --strict
 lablock-drift-audit --strict
+```
+
+### 实验看板
+
+```bash
+lablock dashboard
+```
+
+默认会生成：
+
+- `.lablock/dashboard/data.json`
+- `.lablock/dashboard/index.html`
+
+看板从 `experiments/*/hypothesis.md`、`experiments/*/results.md` 和 `.lablock/locks/*.scope.lock` 汇总实验规划、当前进度、父子实验关系、下一步子实验、success/kill criteria 和关键配置。需要纯数据时可以运行：
+
+```bash
+lablock dashboard --json
+```
+
+如果本机允许打开浏览器：
+
+```bash
+lablock dashboard --open
 ```
 
 ## Skill 总览
@@ -148,6 +172,7 @@ LabLock skills 分两类：
 | `/lab-advice` | 不知道当前任务该用哪个 LabLock skill | 读用户意图，推荐最合适的 `/lab-*`，或明确说没有合适 skill | 推荐 skill、理由、可复制调用语句 |
 | `/lab-init` | 新科研仓库第一次接入 LabLock | 初始化目录、配置、hooks、CLAUDE/AGENTS 注入和 CI | `.lablock/`、项目骨架、hooks |
 | `/lab-migrate` | 已有科研仓库想非破坏性接入 LabLock | 先盘点旧脚本/plan/实验/结果，写迁移计划，再经确认用 warn-only 初始化 | `reviews/migration-YYYY-MM-DD.md` 或 `LABLOCK_MIGRATION_PLAN.md` |
+| `/lab-dashboard` | 想打开、刷新或填充实验看板 | 运行 `lablock dashboard`，必要时引导创建真实 experiment node 后刷新图形界面 | `.lablock/dashboard/index.html`、实验状态摘要 |
 | `/lab-update` | 任意项目里想一键升级本机 LabLock | 运行 `lablock update`：从 GitHub fast-forward 更新 canonical source，重装依赖，刷新 Claude/Codex skills | 更新后的 source、CLI、skill 安装路径 |
 | `/lab-tidy` | 仓库变乱、旧实验太多、分支/文件需要整理 | 找 stale branches、oversized files、expired handoffs、orphan files；默认 dry-run | repo health 清单，可选逐项 apply |
 | `/lab-audit` | 每周检查或想知道项目哪里 stale | 聚合 frontmatter、scope、coverage、orphan、drift、weekly digest | `reviews/audit-YYYY-MM-DD.md` |

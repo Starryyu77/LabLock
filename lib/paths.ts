@@ -17,6 +17,9 @@ export const PATHS = {
   STATE_FREEZE: '.lablock/state/freeze-status',
   STATE_CHANGE_INDEX: '.lablock/state/change-index.jsonl',
   CACHE_DIR: '.lablock/cache',
+  DASHBOARD_DIR: '.lablock/dashboard',
+  DASHBOARD_DATA: '.lablock/dashboard/data.json',
+  DASHBOARD_HTML: '.lablock/dashboard/index.html',
 
   GIT_DIR: '.git',
   GIT_HOOKS: '.git/hooks',

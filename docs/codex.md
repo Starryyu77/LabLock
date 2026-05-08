@@ -6,4 +6,4 @@ Install LabLock for Codex with:
 ./setup --host=codex
 ```
 
-This symlinks the repository into `~/.agents/skills/lablock` and enables the Codex-oriented hook template for target projects.
+This records the canonical implementation at `~/.lablock/source`, symlinks each `lab-*` skill into `~/.agents/skills/<skill-name>`, and enables the Codex-oriented hook template for target projects.

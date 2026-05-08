@@ -271,6 +271,19 @@ async function forkExperiment(opts: {
       alternatives: 'Override the drift or revert the staged changes.',
     });
     if (opts.stage) await rawGit(['add', decisionPath]);
+    if (opts.stage) {
+      await writeMeta(CommitMetaSchema.parse({
+        schema_version: 1,
+        exp_id: opts.from,
+        change_id: changeId,
+        tag: 'SCOPE-DRIFT',
+        classified_files: [],
+        drift_layers: drift,
+        override_decision: null,
+        override_reason: null,
+        created_at: new Date().toISOString(),
+      }));
+    }
   }
   if (opts.stage) await rawGit(['add', `.lablock/locks/${opts.from}.scope.lock`, `.lablock/locks/${expId}.scope.lock`, parentDir, newDir]);
   return expId;
@@ -284,6 +297,86 @@ function flattenForCli(obj: Record<string, any>, prefix = ''): string {
     else rows.push(`${full}=${JSON.stringify(value)}`);
   }
   return rows.filter(Boolean).join(',');
+}
+
+async function experimentShortname(expId: string): Promise<string> {
+  const dir = await findExperimentDir(expId);
+  if (!dir) throw new Error(`Experiment not found: ${expId}`);
+  return dir.replace(/^experiments\//, '').replace(new RegExp(`^${expId}-`), '');
+}
+
+async function ensureCleanTree(): Promise<void> {
+  const status = await rawGit(['status', '--porcelain']);
+  if (status.trim()) throw new Error('Working tree is not clean.');
+}
+
+async function expStart(opts: { exp: string; base?: string; push?: boolean; remote?: string }): Promise<void> {
+  await ensureCleanTree();
+  const shortname = await experimentShortname(opts.exp);
+  const branch = `exp/${opts.exp}-${shortname}`;
+  await rawGit(['switch', opts.base ?? 'main']);
+  await rawGit(['switch', '-c', branch]);
+  await mkdir(PATHS.STATE_DIR, { recursive: true });
+  await writeFile(PATHS.STATE_CURRENT_EXP, `${opts.exp}\n`);
+  await rawGit(['add', PATHS.STATE_CURRENT_EXP]).catch(() => undefined);
+  console.log(`Experiment branch created: ${branch}`);
+  if (opts.push) {
+    await rawGit(['push', '-u', opts.remote ?? 'origin', branch]);
+    console.log(`Pushed: ${opts.remote ?? 'origin'}/${branch}`);
+  }
+}
+
+async function expFinalize(opts: { exp: string; status: string; tag?: boolean; clearCurrent?: boolean }): Promise<void> {
+  const dir = await findExperimentDir(opts.exp);
+  if (!dir) throw new Error(`Experiment not found: ${opts.exp}`);
+  const valid = ['done', 'killed', 'superseded'];
+  if (!valid.includes(opts.status)) throw new Error(`--status must be one of: ${valid.join(', ')}`);
+  const doc = await readFrontmatter(`${dir}/hypothesis.md`);
+  await writeFrontmatter(`${dir}/hypothesis.md`, {
+    ...doc.frontmatter,
+    status: opts.status,
+    finalized_at: new Date().toISOString(),
+  }, doc.body);
+  const lock = await readLock(opts.exp);
+  await writeLock({ ...lock, status: opts.status === 'done' ? 'finalized' : 'superseded' });
+  if (opts.clearCurrent !== false) {
+    const current = await readFile(PATHS.STATE_CURRENT_EXP, 'utf8').catch(() => null);
+    if (current?.trim() === opts.exp) await unlink(PATHS.STATE_CURRENT_EXP).catch(() => undefined);
+  }
+  if (opts.tag) await rawGit(['tag', `${opts.exp}-final`]);
+  console.log(`Experiment finalized: ${opts.exp} -> ${opts.status}`);
+}
+
+async function postmortem(opts: { exp: string; status?: string; overwrite?: boolean }): Promise<void> {
+  const dir = await findExperimentDir(opts.exp);
+  if (!dir) throw new Error(`Experiment not found: ${opts.exp}`);
+  const dest = `${dir}/postmortem.md`;
+  const shortname = await experimentShortname(opts.exp);
+  await renderToFile('postmortem.md.tmpl', dest, {
+    exp_id: opts.exp,
+    shortname,
+    status: opts.status ?? 'killed',
+  }, { overwrite: Boolean(opts.overwrite) });
+  console.log(dest);
+}
+
+async function cleanupPr(opts: { exp: string; base?: string; json?: boolean }): Promise<void> {
+  const branch = await rawGit(['branch', '--show-current']).then((s) => s.trim()).catch(() => 'HEAD');
+  const base = opts.base ?? 'main';
+  const diff = await rawGit(['diff', '--name-status', `${base}...HEAD`]).catch(() => '');
+  const files = diff.split('\n').filter(Boolean).map((line) => {
+    const [status, path] = line.split(/\s+/, 2);
+    let action = 'review';
+    if (/^(formalism\.md|claims\.md|decisions\/)/.test(path)) action = 'include';
+    else if (/^experiments\/|debug|tmp|scratch/.test(path)) action = 'exclude';
+    return { status, path, action };
+  });
+  const payload = { exp: opts.exp, base, branch, files };
+  if (opts.json) console.log(JSON.stringify(payload, null, 2));
+  else {
+    console.log(`Cleanup PR dry-run for ${opts.exp}: ${branch} -> ${base}`);
+    for (const f of files) console.log(`${f.action}\t${f.status}\t${f.path}`);
+  }
 }
 
 async function installHooks(): Promise<void> {
@@ -396,8 +489,7 @@ async function detectLabLockSource(explicit?: string): Promise<string> {
     explicit,
     process.env.LABLOCK_HOME,
     await readPackageName(process.cwd()).then((name) => name === 'lablock' ? process.cwd() : undefined),
-    join(homedir(), '.agents/skills/lablock'),
-    join(homedir(), '.claude/skills/lablock'),
+    join(homedir(), '.lablock/source'),
   ].filter(Boolean) as string[];
 
   for (const candidate of candidates) {
@@ -414,13 +506,13 @@ function hostTargets(host: string, scope: string): Array<{ label: string; path: 
     if (scope === 'global' || scope === 'both' || scope === 'auto') {
       targets.push({
         label: `${h}:global`,
-        path: h === 'claude' ? join(homedir(), '.claude/skills/lablock') : join(homedir(), '.agents/skills/lablock'),
+        path: h === 'claude' ? join(homedir(), '.claude/skills') : join(homedir(), '.agents/skills'),
       });
     }
     if (scope === 'project' || scope === 'both') {
       targets.push({
         label: `${h}:project`,
-        path: h === 'claude' ? '.claude/skills/lablock' : '.agents/skills/lablock',
+        path: h === 'claude' ? '.claude/skills' : '.agents/skills',
       });
     }
   }
@@ -475,6 +567,18 @@ async function updateOneSkillTarget(source: string, target: string, mode: 'symli
   return exists ? 'copied' : 'created-copy';
 }
 
+async function listLabSkills(source: string): Promise<Array<{ name: string; path: string }>> {
+  const entries = await readdir(source, { withFileTypes: true });
+  const skills = [];
+  for (const entry of entries) {
+    if (!entry.isDirectory() || !entry.name.startsWith('lab-')) continue;
+    const skillPath = join(source, entry.name);
+    if (await pathExists(join(skillPath, 'SKILL.md'))) skills.push({ name: entry.name, path: skillPath });
+  }
+  if (skills.length === 0) throw new Error(`${source}: no lab-* skills found`);
+  return skills.sort((a, b) => a.name.localeCompare(b.name));
+}
+
 async function updateInstalledSkills(opts: {
   source?: string;
   host?: string;
@@ -501,12 +605,18 @@ async function updateInstalledSkills(opts: {
     }
   }
 
+  const skills = await listLabSkills(source);
   const results = [];
   for (const target of targets) {
-    results.push({
-      ...target,
-      result: await updateOneSkillTarget(source, target.path, mode, Boolean(opts.dryRun)),
-    });
+    for (const skill of skills) {
+      const skillTarget = join(target.path, skill.name);
+      results.push({
+        ...target,
+        skill: skill.name,
+        path: skillTarget,
+        result: await updateOneSkillTarget(skill.path, skillTarget, mode, Boolean(opts.dryRun)),
+      });
+    }
   }
 
   const payload = {
@@ -519,7 +629,7 @@ async function updateInstalledSkills(opts: {
     console.log(JSON.stringify(payload, null, 2));
   } else {
     console.log(`LabLock source: ${source}`);
-    for (const item of results) console.log(`${item.label}: ${item.result} -> ${item.path}`);
+    for (const item of results) console.log(`${item.label}:${item.skill}: ${item.result} -> ${item.path}`);
   }
 }
 
@@ -636,6 +746,33 @@ program.command('config')
       fail(error);
     }
   });
+
+program.command('exp-start')
+  .requiredOption('--exp <id>', 'experiment id')
+  .option('--base <branch>', 'base branch', 'main')
+  .option('--push', 'push branch to remote')
+  .option('--remote <name>', 'remote name', 'origin')
+  .action(async (opts) => expStart(opts).catch(fail));
+
+program.command('exp-finalize')
+  .requiredOption('--exp <id>', 'experiment id')
+  .requiredOption('--status <status>', 'done | killed | superseded')
+  .option('--tag', 'create <exp>-final tag')
+  .option('--no-clear-current', 'do not clear .lablock/state/current-exp')
+  .action(async (opts) => expFinalize(opts).catch(fail));
+
+program.command('postmortem')
+  .requiredOption('--exp <id>', 'experiment id')
+  .option('--status <status>', 'final status', 'killed')
+  .option('--overwrite', 'overwrite existing postmortem')
+  .action(async (opts) => postmortem(opts).catch(fail));
+
+program.command('cleanup-pr')
+  .requiredOption('--exp <id>', 'experiment id')
+  .option('--base <branch>', 'base branch', 'main')
+  .option('--dry-run', 'only print planned file classification', true)
+  .option('--json', 'json output')
+  .action(async (opts) => cleanupPr(opts).catch(fail));
 
 program.command('override')
   .requiredOption('--exp <id>')

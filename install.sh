@@ -2,7 +2,7 @@
 set -euo pipefail
 
 REPO="${LABLOCK_REPO:-https://github.com/Starryyu77/LabLock.git}"
-INSTALL_DIR="${LABLOCK_INSTALL:-$HOME/.claude/skills/lablock}"
+INSTALL_DIR="${LABLOCK_INSTALL:-$HOME/.lablock/source}"
 
 if [ -d "$INSTALL_DIR" ]; then
   echo "LabLock already installed at $INSTALL_DIR. Pulling latest..."

@@ -35,7 +35,7 @@ afterEach(async () => {
 });
 
 describe('update-skills', () => {
-  test('creates a project-local codex symlink from local LabLock source', async () => {
+  test('creates project-local codex symlinks for individual lab skills', async () => {
     const out = await run([
       process.execPath,
       lablock,
@@ -51,10 +51,11 @@ describe('update-skills', () => {
       '--json',
     ], cwd);
     const payload = JSON.parse(out.stdout);
-    expect(payload.results[0].result).toBe('symlinked');
-    const target = join(cwd, '.agents/skills/lablock');
+    const labInit = payload.results.find((r: any) => r.skill === 'lab-init');
+    expect(labInit.result).toBe('symlinked');
+    const target = join(cwd, '.agents/skills/lab-init');
     expect((await lstat(target)).isSymbolicLink()).toBe(true);
-    expect(await realpath(target)).toBe(await realpath(repoRoot));
+    expect(await realpath(target)).toBe(await realpath(join(repoRoot, 'lab-init')));
   });
 
   test('dry-run reports without writing', async () => {
@@ -72,6 +73,6 @@ describe('update-skills', () => {
       '--json',
     ], cwd);
     const payload = JSON.parse(out.stdout);
-    expect(payload.results[0].result).toBe('would-create:symlink');
+    expect(payload.results.some((r: any) => r.skill === 'lab-update' && r.result === 'would-create:symlink')).toBe(true);
   });
 });

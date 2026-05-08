@@ -29,10 +29,14 @@ cd LabLock
 ./setup --no-prompts
 ```
 
-安装后会把当前仓库 symlink 到：
+安装后会把 LabLock implementation 放在：
 
-- Claude Code: `~/.claude/skills/lablock`
-- Codex: `~/.agents/skills/lablock`
+- canonical source: `~/.lablock/source`
+
+同时会把每个 `lab-*` skill 目录分别 symlink 到 host 的 skill root：
+
+- Claude Code: `~/.claude/skills/lab-init`、`~/.claude/skills/lab-exp-init`、...
+- Codex: `~/.agents/skills/lab-init`、`~/.agents/skills/lab-exp-init`、...
 
 只安装某个 host：
 
@@ -64,6 +68,10 @@ lablock init-project --name="My Project" --modules=gpu,data,lit --ci-mode=warn-o
 lablock doctor
 lablock next-exp-id
 lablock exp-init baseline --hypothesis "..." --config optimizer.lr=0.001 --stage
+lablock exp-start --exp=exp-001
+lablock exp-finalize --exp=exp-001 --status=killed
+lablock postmortem --exp=exp-001
+lablock cleanup-pr --exp=exp-001 --dry-run
 lablock fork --from exp-001 --shortname model-fork --reason "model invariant changed" --stage
 lablock override --exp=exp-001 --reason="intentional drift"
 lablock update-skills --host=both --scope=global
@@ -86,7 +94,7 @@ LabLock skills 分两类：
 | Skill | 什么时候用 | 它做什么 | 主要输出 |
 |---|---|---|---|
 | `/lab-init` | 新科研仓库第一次接入 LabLock | 初始化目录、配置、hooks、CLAUDE/AGENTS 注入和 CI | `.lablock/`、项目骨架、hooks |
-| `/lab-update` | 任意项目里想更新本机安装的 LabLock skill | 从本地 canonical LabLock checkout 刷新 `~/.claude/skills/lablock` / `~/.agents/skills/lablock`，默认不拉 GitHub | 更新后的 skill 安装路径、source path、每个 target 的状态 |
+| `/lab-update` | 任意项目里想更新本机安装的 LabLock skills | 从本地 canonical source 刷新 `~/.claude/skills/lab-*` / `~/.agents/skills/lab-*`，默认不拉 GitHub | 更新后的 skill 安装路径、source path、每个 target 的状态 |
 | `/lab-tidy` | 仓库变乱、旧实验太多、分支/文件需要整理 | 找 stale branches、oversized files、expired handoffs、orphan files；默认 dry-run | repo health 清单，可选逐项 apply |
 | `/lab-audit` | 每周检查或想知道项目哪里 stale | 聚合 frontmatter、scope、coverage、orphan、drift、weekly digest | `reviews/audit-YYYY-MM-DD.md` |
 
@@ -171,10 +179,11 @@ lablock update-skills --host=both --scope=global
 
 这会刷新：
 
-- `~/.claude/skills/lablock`
-- `~/.agents/skills/lablock`
+- canonical source：`~/.lablock/source`
+- Claude Code skill symlinks：`~/.claude/skills/lab-*`
+- Codex skill symlinks：`~/.agents/skills/lab-*`
 
-默认 source detection 顺序是 `--source`、`LABLOCK_HOME`、当前目录、已有 Codex install、已有 Claude install。默认不从 GitHub 拉取；如果你明确想先从 GitHub 更新 canonical source，再加：
+默认 source detection 顺序是 `--source`、`LABLOCK_HOME`、当前目录、`~/.lablock/source`。默认不从 GitHub 拉取；如果你明确想先从 GitHub 更新 canonical source，再加：
 
 ```bash
 lablock update-skills --pull --host=both --scope=global
@@ -186,7 +195,7 @@ lablock update-skills --pull --host=both --scope=global
 lablock update-skills --host=both --scope=auto
 ```
 
-`/lab-update` 的语义就是这套操作：像软件更新一样复用本地 canonical LabLock checkout，而不是每个项目都手工 clone / pull GitHub。
+`/lab-update` 的语义就是这套操作：像软件更新一样复用本地 canonical LabLock source，而不是每个项目都手工 clone / pull GitHub。
 
 ## 核心数据结构
 

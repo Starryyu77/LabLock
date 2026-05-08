@@ -15,9 +15,11 @@ for arg in "$@"; do
 done
 
 LABLOCK_HOME="$(cd "$(dirname "$0")" && pwd)"
+CANONICAL_SOURCE="$HOME/.lablock/source"
 
 echo "LabLock setup"
 echo "  Source: $LABLOCK_HOME"
+echo "  Canonical: $CANONICAL_SOURCE"
 echo "  Host:   $HOST"
 echo "  Team:   $TEAM"
 echo
@@ -55,29 +57,43 @@ fi
 cd "$LABLOCK_HOME"
 bun install
 
+mkdir -p "$HOME/.lablock"
+if [ "$LABLOCK_HOME" != "$CANONICAL_SOURCE" ]; then
+  rm -rf "$CANONICAL_SOURCE"
+  ln -s "$LABLOCK_HOME" "$CANONICAL_SOURCE"
+  echo "Canonical source: ~/.lablock/source -> $LABLOCK_HOME"
+fi
+
+install_skill_links() {
+  local target_root="$1"
+  local label="$2"
+  mkdir -p "$target_root"
+  for skill_dir in "$LABLOCK_HOME"/lab-*; do
+    [ -f "$skill_dir/SKILL.md" ] || continue
+    local name
+    name="$(basename "$skill_dir")"
+    rm -rf "$target_root/$name"
+    ln -s "$skill_dir" "$target_root/$name"
+    echo "$label skill: $target_root/$name -> $skill_dir"
+  done
+}
+
 case "$HOST" in
   claude|both)
-    mkdir -p "$HOME/.claude/skills"
-    rm -rf "$HOME/.claude/skills/lablock"
-    ln -s "$LABLOCK_HOME" "$HOME/.claude/skills/lablock"
-    echo "Claude Code: ~/.claude/skills/lablock -> $LABLOCK_HOME"
+    install_skill_links "$HOME/.claude/skills" "Claude Code"
     ;;
 esac
 
 case "$HOST" in
   codex|both)
-    mkdir -p "$HOME/.agents/skills"
-    rm -rf "$HOME/.agents/skills/lablock"
-    ln -s "$LABLOCK_HOME" "$HOME/.agents/skills/lablock"
-    echo "Codex: ~/.agents/skills/lablock -> $LABLOCK_HOME"
+    install_skill_links "$HOME/.agents/skills" "Codex"
     ;;
 esac
 
 chmod +x "$LABLOCK_HOME/hooks/"*.sh
 chmod +x "$LABLOCK_HOME/hooks/"*.ts
-chmod +x "$LABLOCK_HOME/bin/"*.ts
+chmod +x "$LABLOCK_HOME/bin"/lablock*.ts
 
-mkdir -p "$HOME/.lablock"
 if [ ! -f "$HOME/.lablock/config.yaml" ]; then
   cat > "$HOME/.lablock/config.yaml" <<EOF
 version: 1
@@ -98,13 +114,21 @@ if [ "$TEAM" = true ]; then
   case "$HOST" in
     claude|both)
       mkdir -p .claude/skills
-      cp -R "$LABLOCK_HOME" .claude/skills/lablock
+      for skill_dir in "$LABLOCK_HOME"/lab-*; do
+        [ -f "$skill_dir/SKILL.md" ] || continue
+        rm -rf ".claude/skills/$(basename "$skill_dir")"
+        cp -R "$skill_dir" ".claude/skills/$(basename "$skill_dir")"
+      done
       ;;
   esac
   case "$HOST" in
     codex|both)
       mkdir -p .agents/skills
-      cp -R "$LABLOCK_HOME" .agents/skills/lablock
+      for skill_dir in "$LABLOCK_HOME"/lab-*; do
+        [ -f "$skill_dir/SKILL.md" ] || continue
+        rm -rf ".agents/skills/$(basename "$skill_dir")"
+        cp -R "$skill_dir" ".agents/skills/$(basename "$skill_dir")"
+      done
       ;;
   esac
 fi

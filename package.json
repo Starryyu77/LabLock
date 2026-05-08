@@ -12,6 +12,7 @@
     "lablock-suggest-tag": "bin/lablock-suggest-tag.ts",
     "lablock-coverage": "bin/lablock-coverage.ts",
     "lablock-orphans": "bin/lablock-orphans.ts",
+    "lablock-probes": "bin/lablock-probes.ts",
     "lablock-drift-audit": "bin/lablock-drift-audit.ts",
     "lablock-config": "bin/lablock-config.ts",
     "lablock-frontmatter-check": "bin/lablock-frontmatter-check.ts",

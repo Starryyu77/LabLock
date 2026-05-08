@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-LABLOCK_HOME="${LABLOCK_HOME:-$HOME/.claude/skills/lablock}"
+LABLOCK_HOME="${LABLOCK_HOME:-$HOME/.lablock/source}"
 [ -d "$LABLOCK_HOME" ] || exit 0
 command -v bun >/dev/null 2>&1 || exit 0
 

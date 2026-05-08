@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-LABLOCK_HOME="${LABLOCK_HOME:-$HOME/.claude/skills/lablock}"
+LABLOCK_HOME="${LABLOCK_HOME:-$HOME/.lablock/source}"
 [ -d "$LABLOCK_HOME" ] || exit 0
 
 if [ -f .git/MERGE_HEAD ] || [ -f .git/REBASE_HEAD ] || [ -f .git/CHERRY_PICK_HEAD ]; then
@@ -26,7 +26,11 @@ bun "$LABLOCK_HOME/bin/lablock-frontmatter-check.ts" --strict || {
 bun "$LABLOCK_HOME/bin/lablock-lfs-check.ts" || exit 1
 
 CLASSIFY_OUTPUT=$(bun "$LABLOCK_HOME/bin/lablock-classify-diff.ts" --staged --json) || exit 1
-CHANGE_ID=$(bun -e "import { newChangeId } from '$LABLOCK_HOME/lib/ulid.ts'; console.log(newChangeId())")
+if [ -f .git/lablock-commit-meta.json ]; then
+  CHANGE_ID=$(bun -e "console.log(JSON.parse(require('fs').readFileSync('.git/lablock-commit-meta.json','utf-8')).change_id)")
+else
+  CHANGE_ID=$(bun -e "import { newChangeId } from '$LABLOCK_HOME/lib/ulid.ts'; console.log(newChangeId())")
+fi
 SUGGESTED_TAG=$(echo "$CLASSIFY_OUTPUT" | bun -e "console.log(JSON.parse(require('fs').readFileSync(0,'utf-8')).suggested_tag)")
 
 DRIFT_JSON='{"config":[],"files":[]}'

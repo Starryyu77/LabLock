@@ -141,6 +141,7 @@ LabLock skills 分两类：
 | Skill | 什么时候用 | 它做什么 | 主要输出 |
 |---|---|---|---|
 | `/lab-init` | 新科研仓库第一次接入 LabLock | 初始化目录、配置、hooks、CLAUDE/AGENTS 注入和 CI | `.lablock/`、项目骨架、hooks |
+| `/lab-migrate` | 已有科研仓库想非破坏性接入 LabLock | 先盘点旧脚本/plan/实验/结果，写迁移计划，再经确认用 warn-only 初始化 | `reviews/migration-YYYY-MM-DD.md` 或 `LABLOCK_MIGRATION_PLAN.md` |
 | `/lab-update` | 任意项目里想更新本机安装的 LabLock skills | 从本地 canonical source 刷新 `~/.claude/skills/lab-*` / `~/.agents/skills/lab-*`，默认不拉 GitHub | 更新后的 skill 安装路径、source path、每个 target 的状态 |
 | `/lab-tidy` | 仓库变乱、旧实验太多、分支/文件需要整理 | 找 stale branches、oversized files、expired handoffs、orphan files；默认 dry-run | repo health 清单，可选逐项 apply |
 | `/lab-audit` | 每周检查或想知道项目哪里 stale | 聚合 frontmatter、scope、coverage、orphan、drift、weekly digest | `reviews/audit-YYYY-MM-DD.md` |
@@ -159,7 +160,7 @@ LabLock skills 分两类：
 | Skill | 什么时候用 | 它做什么 | 主要输出 |
 |---|---|---|---|
 | `/lab-exp-init` | 新实验、ablation 或新 baseline 开始前 | 分配 `exp-NNN`，创建 hypothesis、config、scope.lock、results | `experiments/<exp>-<shortname>/`、`.lablock/locks/<exp>.scope.lock` |
-| `/lab-exp-start` | 实验文件创建后，要真正开始独立分支 | 从 `main` 创建 experiment branch，提交初始实验文件，设置 current-exp | `exp/<exp>-<shortname>` branch |
+| `/lab-exp-start` | 实验文件已提交后，要真正开始独立分支 | 要求 clean tree，从 `main` 创建 experiment branch，设置 current-exp，可选 push | `exp/<exp>-<shortname>` branch |
 | `/lab-exp-run` | 准备启动训练或实验命令 | scope pre-flight，设置 `.lablock/state/current-exp`，记录 run 信息 | `infra/gpu/runs.md` 更新和 canonical command |
 | `/lab-guard` | pre-commit 报 SCOPE-DRIFT | 展示 drift，要求选择 fork、update lock + decision、或 revert | accountability artifact 或中止 commit |
 | `/lab-fork` | 当前实验变量漂移，应该成为新实验 | 创建新 `exp-NNN`，设置 `forked_from`，复制/更新 lock，可标记原实验 superseded | 新 experiment dir、new scope.lock、decision |
@@ -193,6 +194,14 @@ LabLock skills 分两类：
 3. `/lab-plan-exp`
 4. `/lab-exp-init`
 5. `/lab-exp-start`
+
+### 接入已有科研仓库
+
+1. `/lab-migrate`
+2. 审阅迁移报告
+3. 同意后用 warn-only 初始化 LabLock
+4. 选择一个当前活跃实验，用 `/lab-exp-init` 创建第一个 `scope.lock`
+5. 跑 `/lab-audit`，确认后再逐步迁移旧实验
 
 ### 实验中
 

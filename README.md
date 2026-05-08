@@ -190,6 +190,8 @@ LabLock skills 分两类：
 
 ## 推荐工作流
 
+完整入门教程见 [`docs/tutorial.md`](docs/tutorial.md)。已有科研仓库迁入案例见 [`docs/use-case.md`](docs/use-case.md)。
+
 ### 开新项目
 
 1. `/lab-init`

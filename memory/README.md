@@ -33,6 +33,7 @@ The pasted "LabLock — Developer Implementation Specification" is the current i
 - 2026-05-08: Added a README copy-paste AI installer prompt for external users. `install.sh` now forwards args to `setup` so `curl .../install.sh | bash -s -- --host=both --no-prompts` works, uses `git pull --ff-only`, and errors on non-git install paths.
 - 2026-05-08: Designed `/lab-migrate` for existing research repositories. It defaults to non-destructive inventory and migration planning, initializes only with user approval in warn-only mode, and recommends locking one active experiment first rather than backfilling all legacy work.
 - 2026-05-08: Added the missing user-facing one-command updater concept: `lablock update` now pulls the canonical source, runs `bun install`, and refreshes installed Claude/Codex LabLock skills, while `update-skills` remains the lower-level local refresh command.
+- 2026-05-08: Added user-facing documentation for onboarding: `docs/tutorial.md` walks through install -> init/migrate -> first controlled experiment -> drift handling -> finalize/audit, and `docs/use-case.md` gives a concrete existing-repo migration scenario.
 
 ## Next Checkpoint
 

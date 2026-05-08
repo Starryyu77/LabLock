@@ -8,7 +8,7 @@ For the full explanation of every skill, see `docs/skills-reference.md`.
 
 - Unsure which LabLock skill fits the request: `/lab-advice`
 - New research repository needs LabLock skeleton, hooks, and CI: `/lab-init`
-- Existing research repository needs non-destructive adoption planning: `/lab-migrate`
+- Existing research repository needs non-destructive adoption planning or legacy plan/run import: `/lab-migrate`
 - Installed LabLock should be upgraded from GitHub or refreshed locally: `/lab-update`
 - You want a read-only health report: `/lab-audit`
 - You want cleanup candidates and optional apply: `/lab-tidy`

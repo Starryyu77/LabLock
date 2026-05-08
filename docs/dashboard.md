@@ -37,6 +37,20 @@ The generated board will show `exp-002` under `exp-001` and surface it as the ne
 
 For AI-assisted use, invoke `/lab-dashboard`. The skill checks the current repo, refreshes the dashboard, and can guide adding a new real experiment node before reopening the board.
 
+If the repository already has legacy plans, runs, or result folders that should appear on the board, do not edit dashboard data by hand. Use `/lab-migrate` or import a single legacy item with:
+
+```bash
+lablock migrate-node legacy-baseline \
+  --source runs/2026-05-01-baseline \
+  --source-type run \
+  --status done \
+  --hypothesis "Legacy baseline run reproduced reference accuracy." \
+  --confidence medium \
+  --stage
+```
+
+This creates a LabLock mirror node while leaving the original legacy source in place.
+
 For machine-readable automation:
 
 ```bash

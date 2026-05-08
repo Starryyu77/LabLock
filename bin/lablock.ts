@@ -200,6 +200,144 @@ async function createExperiment(opts: {
   return expId;
 }
 
+function lockStatusForExperimentStatus(status: string): ScopeLock['status'] {
+  if (status === 'planned' || status === 'running') return 'active';
+  if (status === 'done') return 'finalized';
+  return 'superseded';
+}
+
+async function createMigratedExperimentNode(opts: {
+  shortname: string;
+  source: string;
+  hypothesis: string;
+  status?: string;
+  sourceType?: string;
+  parent?: string;
+  confidence?: string;
+  success?: string;
+  kill?: string;
+  stage?: boolean;
+}): Promise<string> {
+  const status = opts.status ?? 'planned';
+  if (!['planned', 'running', 'done', 'killed', 'superseded'].includes(status)) {
+    throw new Error('--status must be planned, running, done, killed, or superseded');
+  }
+  const sourceType = opts.sourceType ?? 'unknown';
+  if (!['plan', 'experiment', 'run', 'result', 'unknown'].includes(sourceType)) {
+    throw new Error('--source-type must be plan, experiment, run, result, or unknown');
+  }
+  const confidence = opts.confidence ?? 'medium';
+  if (!['low', 'medium', 'high'].includes(confidence)) throw new Error('--confidence must be low, medium, or high');
+  if (!opts.source) throw new Error('--source is required');
+  if (!await pathExists(opts.source)) throw new Error(`Legacy source not found: ${opts.source}`);
+
+  const shortname = slugify(opts.shortname);
+  const expId = await nextExpId();
+  const parent = opts.parent && opts.parent !== 'null' && opts.parent !== 'none' ? opts.parent : null;
+  if (parent) {
+    const parentStatus = await readExperimentStatus(parent);
+    if (!parentStatus) throw new Error(`Parent experiment not found: ${parent}`);
+  }
+
+  const today = new Date().toISOString().slice(0, 10);
+  const importedAt = new Date().toISOString();
+  const sourcePath = opts.source.replaceAll('\\', '/');
+  const expDir = `${PATHS.EXPERIMENTS}/${expId}-${shortname}`;
+  if (await pathExists(expDir)) throw new Error(`${expDir} already exists`);
+  await mkdir(expDir, { recursive: true });
+
+  const migrationConfig = {
+    migration: {
+      imported: true,
+      source_path: sourcePath,
+      source_type: sourceType,
+      confidence,
+      imported_at: importedAt,
+      legacy_status: status,
+    },
+  };
+  const success = parseCsv(opts.success ?? 'legacy success criteria were not recorded during import');
+  const kill = parseCsv(opts.kill ?? 'legacy kill criteria were not recorded during import');
+  const controlledChanges = {
+    modified: [`imported legacy ${sourceType} from ${sourcePath}`],
+  };
+
+  const lock: ScopeLock = {
+    exp_id: expId,
+    shortname,
+    hypothesis: opts.hypothesis,
+    parent,
+    created: today,
+    status: lockStatusForExperimentStatus(status),
+    locked_invariants: {
+      config: migrationConfig,
+      files: [],
+      probes: [],
+    },
+    controlled_changes: controlledChanges,
+    kill_criteria: kill,
+    success_criteria: success,
+  };
+  await writeLock(lock);
+  await writeFrontmatter(`${expDir}/hypothesis.md`, {
+    id: expId,
+    parent,
+    status,
+    created: today,
+    hypothesis: opts.hypothesis,
+    related_claims: [],
+    tags: ['imported', 'legacy', sourceType, confidence === 'low' ? 'needs-confirmation' : 'migration-reviewed'].filter(Boolean),
+  }, [
+    `# ${expId}: ${shortname}`,
+    '',
+    '## Hypothesis',
+    '',
+    opts.hypothesis,
+    '',
+    '## Migration source',
+    '',
+    `- Source path: \`${sourcePath}\``,
+    `- Source type: ${sourceType}`,
+    `- Import confidence: ${confidence}`,
+    `- Imported at: ${importedAt}`,
+    '',
+    '## What changed',
+    '',
+    `- Modified: imported legacy ${sourceType} from \`${sourcePath}\``,
+    '',
+    '## Success criteria',
+    '',
+    ...success.map((v) => `- ${v}`),
+    '',
+    '## Kill criteria',
+    '',
+    ...kill.map((v) => `- ${v}`),
+    '',
+    '## Notes',
+    '',
+    'This LabLock node mirrors existing legacy material. The original files were not moved or rewritten. Treat low-confidence imports as dashboard placeholders until a human confirms the hypothesis, status, and criteria.',
+    '',
+  ].join('\n'));
+  await writeFile(`${expDir}/config.yaml`, yaml.dump(migrationConfig, { lineWidth: 120, noRefs: true, sortKeys: false }));
+  await writeFile(`${expDir}/results.md`, [
+    `# Results: ${expId}`,
+    '',
+    '## Progress',
+    '',
+    `- Imported from legacy ${sourceType}: \`${sourcePath}\``,
+    `- Legacy status at import: ${status}`,
+    '',
+    '## Legacy source',
+    '',
+    `Review the original material at \`${sourcePath}\`. Copy only curated summaries here; do not move or rewrite the legacy source as part of import.`,
+    '',
+  ].join('\n'));
+  if (opts.stage) {
+    await rawGit(['add', expDir, `.lablock/locks/${expId}.scope.lock`]);
+  }
+  return expId;
+}
+
 async function forkExperiment(opts: {
   from: string;
   shortname?: string;
@@ -1248,6 +1386,27 @@ program.command('exp-init')
     try {
       const expId = await createExperiment({ shortname, ...opts });
       console.log(`Experiment created: ${expId}`);
+    } catch (error) {
+      fail(error);
+    }
+  });
+
+program.command('migrate-node')
+  .description('Create a LabLock experiment node that mirrors legacy plan or experiment material')
+  .argument('<shortname>')
+  .requiredOption('--source <path>', 'legacy source file or directory to reference')
+  .requiredOption('--hypothesis <text>', 'hypothesis or summary for the imported node')
+  .option('--status <status>', 'planned | running | done | killed | superseded', 'planned')
+  .option('--source-type <type>', 'plan | experiment | run | result | unknown', 'unknown')
+  .option('--parent <id>', 'parent experiment id; omit or use none for root')
+  .option('--confidence <level>', 'low | medium | high', 'medium')
+  .option('--success <csv>', 'success criteria or import note')
+  .option('--kill <csv>', 'kill criteria or import note')
+  .option('--stage', 'git add created node files')
+  .action(async (shortname, opts) => {
+    try {
+      const expId = await createMigratedExperimentNode({ shortname, ...opts });
+      console.log(`Migrated experiment node created: ${expId}`);
     } catch (error) {
       fail(error);
     }

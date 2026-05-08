@@ -161,13 +161,30 @@ eval.py
 默认 ci.mode=warn-only。迁移报告写到 reviews/migration-YYYY-MM-DD.md 或 LABLOCK_MIGRATION_PLAN.md。
 ```
 
-`/lab-migrate` 的合理结果不是“所有旧实验都变成 LabLock 实验”。第一阶段只要求：
+`/lab-migrate` 的合理结果不是“把旧目录搬家到 LabLock 结构里”。第一阶段要求：
 
 ```text
-一个当前活跃实验有 scope.lock，
-未来 commit 能被 hooks 守住，
-旧实验保留为 legacy material。
+旧文件原地保留，
+迁移报告列出哪些旧 plan / run / result 应该进入 LabLock 看板，
+经用户确认后，选中的旧材料被导入为 LabLock mirror nodes，
+未来 commit 能被 hooks 守住。
 ```
+
+mirror node 是一个新的 `experiments/exp-NNN-*/` 加 `.lablock/locks/exp-NNN.scope.lock`。它引用旧 source path，但不移动或复制旧实验目录。这样 dashboard、audit、synthesize、paper 相关流程才能读到这些旧实验。
+
+单个导入命令示例：
+
+```bash
+lablock migrate-node legacy-baseline \
+  --source runs/2026-05-01-baseline \
+  --source-type run \
+  --status done \
+  --hypothesis "Legacy baseline run reproduced reference accuracy." \
+  --confidence medium \
+  --stage
+```
+
+低置信度导入是允许的，但必须保守描述，并在后续 review 中确认。
 
 ## 5. 创建第一个受控实验
 

@@ -53,6 +53,8 @@ Then report the generated path: `.lablock/dashboard/index.html`.
 
 The board is generated from experiment files. To add a new item, create a real experiment node, then refresh the dashboard.
 
+If the item already exists as a legacy plan, run, or result folder, route to `/lab-migrate` or use `lablock migrate-node` for a single approved item. Do not use `exp-init` to invent a fresh experiment when the user is asking to surface historical work.
+
 Ask only for missing fields:
 
 - `shortname`: lowercase slug, 3-30 chars.
@@ -80,6 +82,20 @@ Then refresh:
 ```bash
 lablock dashboard --open
 ```
+
+For a legacy item that the user has already approved for import, run:
+
+```bash
+lablock migrate-node "<shortname>" \
+  --source="<legacy-path>" \
+  --source-type="<plan|experiment|run|result|unknown>" \
+  --status="<planned|running|done|killed|superseded>" \
+  --hypothesis="<conservative hypothesis or summary>" \
+  --confidence="<low|medium|high>" \
+  --stage
+```
+
+Then refresh the dashboard.
 
 ## Summarize The Board
 

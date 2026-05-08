@@ -35,6 +35,37 @@ afterEach(async () => {
 });
 
 describe('experiment dashboard', () => {
+  test('migrated legacy nodes appear in dashboard data', async () => {
+    await run([process.execPath, lablock, 'init-project', '--name', 'Migrated Lab'], cwd);
+    await mkdir(join(cwd, 'legacy-runs/run-a'), { recursive: true });
+    await writeFile(join(cwd, 'legacy-runs/run-a/summary.md'), '# Run A\n\nAccuracy improved in the old run.\n');
+
+    await run([
+      process.execPath,
+      lablock,
+      'migrate-node',
+      'legacy-run-a',
+      '--source',
+      'legacy-runs/run-a',
+      '--source-type',
+      'run',
+      '--status',
+      'done',
+      '--confidence',
+      'high',
+      '--hypothesis',
+      'Legacy run A improved downstream accuracy.',
+    ], cwd);
+
+    const data = JSON.parse((await run([process.execPath, lablock, 'dashboard', '--json'], cwd)).stdout);
+    expect(data.summary.total).toBe(1);
+    expect(data.summary.done).toBe(1);
+    expect(data.experiments[0].shortname).toBe('legacy-run-a');
+    expect(data.experiments[0].lock_status).toBe('finalized');
+    expect(data.experiments[0].progress.summary).toContain('Imported from legacy run');
+    expect(data.experiments[0].config.some((row: any) => row.key === 'migration.source_path' && row.value === 'legacy-runs/run-a')).toBe(true);
+  });
+
   test('generates static HTML and JSON from experiment files', async () => {
     await run([process.execPath, lablock, 'init-project', '--name', 'Dashboard Lab', '--goal', 'Track several experiment lines'], cwd);
     await run([

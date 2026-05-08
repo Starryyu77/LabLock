@@ -91,7 +91,8 @@ git log --oneline --decorate -20
 
 ```text
 推荐先把当前 contrastive line 作为第一个受控实验。
-旧 runs/ 保持 legacy，不立即生成 scope.lock。
+baseline run 和 contrastive run 应导入为 LabLock mirror nodes，供 dashboard/audit 读取。
+旧 runs/ 原地保留，不移动、不重命名。
 CI 先用 warn-only。
 第一批 invariants 只锁 optimizer.lr、batch_size、src/data.py、src/model.py。
 ```
@@ -137,9 +138,62 @@ git commit -m "initialize LabLock in warn-only mode"
 
 如果 `experiments/`、`decisions/`、`reviews/`、`handoffs/` 或 `paper/` 是这次初始化新建的空目录/模板文件，可以在确认没有旧内容被误 stage 后再加入 commit。已有旧内容不要因为初始化顺手全量 stage。
 
-## Step 4：创建第一个受控实验
+## Step 4：导入已有 run 作为 LabLock 实验节点
 
-现在只选一个当前活跃实验，不回填全部历史实验。
+初始化完成后，先把迁移表里确认要进入看板的旧 run 导入为 mirror node。原始 `runs/` 目录仍然保留，LabLock 只创建可审计的索引节点。
+
+例如导入 baseline：
+
+```bash
+lablock migrate-node baseline-2026-05-01 \
+  --source runs/2026-05-01-baseline \
+  --source-type run \
+  --status done \
+  --hypothesis "Legacy baseline run reproduced reference accuracy." \
+  --confidence medium \
+  --stage
+```
+
+导入 contrastive run：
+
+```bash
+lablock migrate-node contrastive-2026-05-04 \
+  --source runs/2026-05-04-contrastive \
+  --source-type run \
+  --status done \
+  --hypothesis "Legacy contrastive run improved downstream classification accuracy; exact claim strength requires confirmation." \
+  --confidence low \
+  --parent exp-001 \
+  --stage
+```
+
+这一步会创建：
+
+```text
+experiments/exp-001-baseline-2026-05-01/
+experiments/exp-002-contrastive-2026-05-04/
+.lablock/locks/exp-001.scope.lock
+.lablock/locks/exp-002.scope.lock
+```
+
+每个 node 的 `config.yaml` 和 `scope.lock` 都会记录 `migration.source_path`，方便以后追溯旧材料来源。
+
+刷新看板：
+
+```bash
+lablock dashboard
+```
+
+提交导入节点：
+
+```bash
+git add experiments .lablock/locks .lablock/dashboard
+git commit -m "import legacy experiment nodes"
+```
+
+## Step 5：创建第一个强约束受控实验
+
+迁移节点解决的是“旧实验能被 dashboard/audit 看到”。接下来仍然应该只选一个当前活跃实验，把它变成真正强约束的 controlled experiment。
 
 对 AI 说：
 
@@ -148,17 +202,18 @@ git commit -m "initialize LabLock in warn-only mode"
 shortname 是 contrastive-loss。
 hypothesis 是：Adding contrastive loss improves downstream classification accuracy.
 这是从已有仓库迁入后的第一个 active experiment。
+把它作为 legacy contrastive run 的 child，parent=exp-002。
 请从 configs/contrastive.yaml 里选择少量 config invariants，并把 src/data.py 和 src/model.py 作为 file invariants。
 ```
 
-可能生成的 `.lablock/locks/exp-001.scope.lock` 重点内容：
+可能生成的 `.lablock/locks/exp-003.scope.lock` 重点内容：
 
 ```yaml
-exp_id: exp-001
+exp_id: exp-003
 shortname: contrastive-loss
 hypothesis: |
   Adding contrastive loss improves downstream classification accuracy.
-parent: null
+parent: exp-002
 status: active
 
 locked_invariants:
@@ -188,29 +243,31 @@ success_criteria:
 提交实验定义：
 
 ```bash
-git add experiments/exp-001-contrastive-loss .lablock/locks/exp-001.scope.lock
+git add experiments/exp-003-contrastive-loss .lablock/locks/exp-003.scope.lock
 git commit -m "create contrastive-loss experiment"
 ```
 
 创建实验分支：
 
 ```bash
-lablock exp-start --exp=exp-001
+lablock exp-start --exp=exp-003
 ```
 
-## Step 5：正常实验提交
+这会让 dashboard 显示从历史 run 到当前受控实验的关系。
+
+## Step 6：正常实验提交
 
 修改 `src/loss.py`，加入 contrastive loss。因为这是 controlled change，commit 可以通过：
 
 ```bash
-git add src/loss.py experiments/exp-001-contrastive-loss/results.md
+git add src/loss.py experiments/exp-003-contrastive-loss/results.md
 git commit -m "add contrastive loss and initial results"
 ```
 
 LabLock 会自动补 commit message：
 
 ```text
-[exp-001][RESULT] add contrastive loss and initial results
+[exp-003][RESULT] add contrastive loss and initial results
 
 LabLock-Change: chg-XXXXXXXX
 ```
@@ -218,11 +275,11 @@ LabLock-Change: chg-XXXXXXXX
 并更新：
 
 ```text
-.lablock/changes/exp-001.changes.log
+.lablock/changes/exp-003.changes.log
 .lablock/state/change-index.jsonl
 ```
 
-## Step 6：一次被拦住的 drift
+## Step 7：一次被拦住的 drift
 
 某天你或 AI 顺手改了 `src/data.py`，比如换了 augmentation。这个文件在 `scope.lock` 里是 file invariant。
 
@@ -250,21 +307,21 @@ SCOPE-DRIFT detected but no accountability artifact staged.
 LabLock 创建：
 
 ```text
-experiments/exp-002-augmentation-fork/
-.lablock/locks/exp-002.scope.lock
+experiments/exp-004-augmentation-fork/
+.lablock/locks/exp-004.scope.lock
 ```
 
 新实验 frontmatter 里会有：
 
 ```yaml
-forked_from: exp-001
+forked_from: exp-003
 fork_reason: scope-drift
 ```
 
 ### 选择 B：这是一次有理由的例外，override
 
 ```bash
-lablock override --exp=exp-001 --reason="temporary augmentation fix needed to correct a data bug"
+lablock override --exp=exp-003 --reason="temporary augmentation fix needed to correct a data bug"
 git add src/data.py decisions/
 git commit -m "accept augmentation data fix"
 ```
@@ -283,34 +340,34 @@ git restore --staged src/data.py
 git restore src/data.py
 ```
 
-## Step 7：实验结束和证据整理
+## Step 8：实验结束和证据整理
 
 实验完成：
 
 ```bash
-lablock exp-finalize --exp=exp-001 --status=done --tag
+lablock exp-finalize --exp=exp-003 --status=done --tag
 ```
 
 如果实验成功，整理 PR：
 
 ```text
-请使用 /lab-cleanup-pr，把 exp-001 中应该进入 main 的改动整理成干净 PR。
+请使用 /lab-cleanup-pr，把 exp-003 中应该进入 main 的改动整理成干净 PR。
 不要把 debug noise、临时 runs、旧 checkpoint 放进 PR。
 ```
 
 如果实验失败：
 
 ```text
-请使用 /lab-postmortem 给 exp-001 写失败复盘。必须引用 results.md、changes.log 或具体 commit。
+请使用 /lab-postmortem 给 exp-003 写失败复盘。必须引用 results.md、changes.log 或具体 commit。
 ```
 
 多个实验后做 synthesis：
 
 ```text
-请使用 /lab-synthesize，总结 exp-001 和 exp-002 对当前 claims.md 的影响。
+请使用 /lab-synthesize，总结 exp-001、exp-002 和 exp-003 对当前 claims.md 的影响。
 ```
 
-## Step 8：结果
+## Step 9：结果
 
 迁入后，这个仓库不再依赖聊天记忆判断实验边界，而是有文件化证据链：
 

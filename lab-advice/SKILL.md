@@ -45,7 +45,7 @@ Do not run expensive scans. Do not modify files.
 ### Project setup and maintenance
 
 - New research repo needs skeleton, hooks, CI, `CLAUDE.md` / `AGENTS.md`: `/lab-init`
-- Existing research repo has old scripts/plans/results and needs non-destructive adoption: `/lab-migrate`
+- Existing research repo has old scripts/plans/results and needs non-destructive adoption or legacy node import: `/lab-migrate`
 - LabLock itself should be upgraded from GitHub or refreshed locally: `/lab-update`
 - Graphical experiment board should be opened, refreshed, summarized, or populated: `/lab-dashboard`
 - User wants to know which skill to use: `/lab-advice`

@@ -139,7 +139,8 @@ LabLock skills 分两类：
 
 - 运行 `lablock dashboard --json` 读取当前实验状态。
 - 运行 `lablock dashboard --open` 生成并打开 `.lablock/dashboard/index.html`。
-- 当用户要添加实验时，收集缺失字段并运行 `lablock exp-init` 创建真实 experiment node。
+- 当用户要添加新实验时，收集缺失字段并运行 `lablock exp-init` 创建真实 experiment node。
+- 当用户要把旧 plan、旧 run、旧结果加入看板时，转到 `/lab-migrate` 或运行 `lablock migrate-node` 创建 mirror node。
 - 创建后重新生成看板。
 
 **主要输出**：
@@ -163,6 +164,7 @@ LabLock skills 分两类：
 - 仓库已经有自己的 `scripts/`、`configs/`、`runs/`、`outputs/`、`notes/`、`paper/`。
 - 你不想破坏旧结构，只想从现在开始让未来实验可审计。
 - 你需要先知道哪些东西是旧实验、当前活跃实验、artifact、shared code。
+- 你希望旧 plan / run / result 能出现在 LabLock dashboard、audit、synthesis 或 paper workflow 里。
 
 **不要何时使用**：
 
@@ -173,19 +175,22 @@ LabLock skills 分两类：
 
 - 只读盘点仓库结构、git history、旧实验资产和风险面。
 - 把材料分成 `control-plane`、`shared-code`、`legacy-experiment`、`active-experiment-candidate`、`artifact`、`unknown`。
-- 写迁移计划。
+- 写迁移计划和 Legacy Experiment Import Table。
 - 只有用户明确同意后，才用 `warn-only` 初始化 LabLock。
-- 推荐只先锁一个当前活跃实验，不批量回填全部历史实验。
+- 只有用户明确同意后，才用 `lablock migrate-node` 把选中的旧计划/旧实验/旧 run 导入为 LabLock mirror node。
+- 推荐只导入会被 dashboard/audit 使用的旧材料，再锁一个当前活跃实验。
 
 **主要输出**：
 
 - `reviews/migration-YYYY-MM-DD.md` 或 `LABLOCK_MIGRATION_PLAN.md`。
+- 必要时新增 `experiments/<exp>-<shortname>/` 和 `.lablock/locks/<exp>.scope.lock`。
 
 **下一步**：
 
 - 审阅迁移计划。
 - 同意后初始化 LabLock。
-- 用 `/lab-exp-init` 创建第一个 active experiment 的 `scope.lock`。
+- 确认导入的低置信度 legacy nodes。
+- 用 `/lab-exp-init` 创建或细化第一个强约束 active experiment 的 `scope.lock`。
 
 ### `/lab-update`
 

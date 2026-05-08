@@ -134,6 +134,8 @@ lablock-drift-audit --strict
 
 ## Skill 总览
 
+完整 skill reference 见 [`docs/skills-reference.md`](docs/skills-reference.md)。下面是快速索引。
+
 LabLock skills 分两类：
 
 - **有副作用 / 用户显式调用**：会创建文件、改 Git 状态、push、写决策记录或更新实验状态。

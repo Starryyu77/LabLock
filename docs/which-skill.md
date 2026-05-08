@@ -2,6 +2,8 @@
 
 Use this as the routing table before invoking a LabLock skill.
 
+For the full explanation of every skill, see `docs/skills-reference.md`.
+
 ## Project Setup
 
 - New research repository needs LabLock skeleton, hooks, and CI: `/lab-init`

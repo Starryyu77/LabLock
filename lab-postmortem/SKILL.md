@@ -1,7 +1,7 @@
 ---
 name: lab-postmortem
 description: |
-  Write a postmortem for a failed, killed, or superseded experiment. Triggers: "postmortem", "experiment failed", "killed exp", "what went wrong", "writeup the failure". Strict 5-section template: what we did, what happened, why we think it happened, what we learned, conditions to revive. Often invoked from `/lab-exp-finalize` when status is killed/superseded. The postmortem is mandatory for those statuses—skipping loses a significant fraction of project knowledge. Output: experiments/<exp-id>-<shortname>/postmortem.md.
+  Write a 5-section experiment postmortem. Use for "postmortem", "experiment failed", "killed exp", or "what went wrong". Captures what happened, why, lessons, and revive conditions in experiments/<exp>/postmortem.md.
 disable-model-invocation: false
 related-skills:
   - lab-exp-finalize

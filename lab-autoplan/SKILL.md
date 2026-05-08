@@ -1,7 +1,7 @@
 ---
 name: lab-autoplan
 description: |
-  Run all four review perspectives on a plan in sequence: advisor → reviewer2 → feasibility → novelty. Triggers: "full review", "autoplan", "review everything", "run all reviews", "stress test the plan". Compiles results into a single dashboard document with go/no-go recommendation. Output goes to reviews/. Useful before committing significant compute. This skill writes a markdown report; no git side effects.
+  Run advisor, reviewer2, feasibility, and novelty reviews on one plan. Use for "autoplan", "full review", or "stress test the plan". Writes a go/no-go dashboard under reviews/ with no git side effects.
 disable-model-invocation: false
 related-skills:
   - lab-review

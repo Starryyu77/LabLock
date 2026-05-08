@@ -1,7 +1,7 @@
 ---
 name: lab-paper-write
 description: |
-  Write a paper section based strictly on claims.md and paper/claims-to-evidence.md. Triggers: "write section", "draft paper", "write intro", "method section", "write the introduction", "draft experiments section". Strict rule: refuses to write claims that aren't in claims.md with sufficient evidence. If user wants to claim something not yet supported, suggests running experiments to support it instead. Output: paper/drafts/<section>.md. The output is a draft, not a final—the user reviews, revises, and runs `/lab-paper-audit` before considering it done.
+  Draft a paper section strictly from claims.md and paper/claims-to-evidence.md. Use for "write section", "draft paper", "write intro", or "method section". Refuses unsupported claims and writes paper/drafts/<section>.md.
 disable-model-invocation: false
 related-skills:
   - lab-paper-audit

@@ -29,6 +29,7 @@ The pasted "LabLock — Developer Implementation Specification" is the current i
 - 2026-05-08: Live `lablock github-ruleset check --repo Starryyu77/LabLock --branch main --json` returned `status: no-rules`, confirming the active-rules endpoint is reachable and no repository rules currently apply to `main`.
 - 2026-05-08: Shifted focus from GitHub protection to research-loop dogfood. Added `docs/dogfood.md` controlled dogfood protocol and `tests/integration/dogfood-rehearsal.test.ts`, which rehearses init -> exp-init -> exp-start -> drift block -> override -> finalize -> postmortem -> drift audit.
 - 2026-05-08: Rewrote the 22 original `lab-*` skills from the reviewed long-form drafts in `/Users/starryyu/Downloads/lablock-temp`, keeping `lab-update` as the separate official updater skill. Verification passed with `bun run typecheck`, `bun test` (32 pass), `git diff --check`, and `lablock-frontmatter-check --strict`.
+- 2026-05-08: Added `lablock-skill-lint` to keep model-visible skill descriptions <= 350 chars and user-only descriptions <= 600 chars; shortened skill descriptions, clarified `/lab-exp-start` and `/lab-cleanup-pr` implementation boundaries, and added an `exp-finalize` branch mismatch warning.
 
 ## Next Checkpoint
 

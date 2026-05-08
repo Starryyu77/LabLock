@@ -1,7 +1,7 @@
 ---
 name: lab-tidy
 description: |
-  Audit and tidy the repository. Triggers: "tidy repo", "clean up branches", "repo health", "archive old experiments", "what should I clean", "repo housekeeping". Reports six categories of issues: orphan branches, dangling commits, stale tracking, oversized non-LFS files, expired handoffs, dead experiments needing archive. Default mode is dry-run (read-only). With `--apply`, walks each item with a yes/no/skip prompt; never destructive without consent. This skill reports without changes by default; with --apply it can rename/delete branches, move files, never destructive without per-item confirmation.
+  Dry-run repository hygiene audit. Use for "tidy repo", "clean up branches", "archive old experiments", or "repo housekeeping". Reports stale branches, oversized files, expired handoffs, and orphan files; --apply requires per-item consent.
 disable-model-invocation: false
 related-skills:
   - lab-audit

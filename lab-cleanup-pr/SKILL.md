@@ -1,7 +1,7 @@
 ---
 name: lab-cleanup-pr
 description: |
-  Generate a clean PR that merges only the necessary parts of a successful experiment back to main. Triggers: "cleanup PR", "merge experiment", "back to main", "PR for exp", "promote exp to main". Classifies the diff between the experiment branch and main: formalism / claim / decision changes auto-include, utility code asks the user per-file, exp-scripts are excluded (they live forever in the experiment branch + tag), debug-noise is flagged. Creates a `cleanup/<exp-id>-merge` branch with curated cherry-picks and opens a draft PR via gh. The user reviews and merges. This skill creates a branch, commits, opens a PR; user must invoke explicitly.
+  Create a clean PR for a successful experiment. Use for "cleanup PR", "merge experiment", "back to main", or "promote exp to main". Classifies diff, asks per-file for utility code, excludes exp scripts/debug noise, then can create a cleanup branch and draft PR. User-invoked only.
 disable-model-invocation: true
 related-skills:
   - lab-exp-finalize
@@ -32,7 +32,9 @@ Run:
 lablock cleanup-pr --exp=<exp-id> --base=main --json
 ```
 
-This:
+This CLI command is the classifier/dry-run engine only. It does not create the cleanup branch, copy files, commit, push, or open a PR. This skill performs those manual Git/GitHub steps after the user approves the include set.
+
+The classifier:
 
 - Computes `git diff --name-status main...exp/<exp-id>-*`
 - Classifies each file using `lib/classify.ts` rules:

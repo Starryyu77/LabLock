@@ -1,7 +1,7 @@
 ---
 name: lab-exp-start
 description: |
-  Create the git branch for an experiment after `/lab-exp-init`. Triggers: "start experiment branch", "create exp branch", "branch off", "begin exp", "start working on exp". Creates `exp/<exp-id>-<shortname>` from main (or specified base), makes initial commit (scope.lock + hypothesis.md + experiment dir), pushes to origin if configured, and sets `.lablock/state/current-exp` to focus subsequent commits on this experiment. This skill creates a branch, commits, optionally pushes; user must invoke explicitly.
+  Create the git branch for an already-committed experiment. Use for "start experiment branch", "create exp branch", "branch off", or "begin exp". Requires a clean tree, creates exp/<exp-id>-<shortname>, sets current-exp, and optionally pushes. User-invoked only.
 disable-model-invocation: true
 related-skills:
   - lab-exp-init
@@ -11,7 +11,7 @@ related-skills:
 
 # /lab-exp-start
 
-You are creating the git branch for a newly-initialized experiment. The user has run `/lab-exp-init`; the experiment files are present (or staged); now we make a real branch.
+You are creating the git branch for a newly-initialized experiment. The user has already run `/lab-exp-init` and committed the experiment files on `main` or the chosen base branch. Now we create the branch and focus LabLock on that experiment.
 
 ## Pre-flight
 
@@ -22,7 +22,7 @@ Required:
 Verify:
 
 1. **Experiment exists**: `experiments/<exp-id>-*/hypothesis.md` and `.lablock/locks/<exp-id>.scope.lock` are present.
-2. **Working tree clean** (or only the staged exp-init files): if dirty with unrelated changes, refuse: "Working tree has uncommitted changes outside the new experiment. Commit or stash first."
+2. **Working tree clean**: the current `lablock exp-start` CLI calls `ensureCleanTree()`. If any file is staged or dirty, refuse: "Commit the exp-init files first, or stash unrelated work."
 3. **Currently on `main` (or specified `--base`)**: if on another branch, refuse: "Switch to main first, or pass `--base=<branch>`."
 4. **Branch doesn't already exist**: `git branch --list exp/<exp-id>-*` returns empty.
 
@@ -40,31 +40,13 @@ This:
 - Switches to `<base>` (default `main`)
 - Creates branch `exp/<exp-id>-<shortname>`
 - Sets `.lablock/state/current-exp` to `<exp-id>` (gitignored)
-- Stages the state file (it's not tracked but is staged for clarity)
 - Optionally pushes with `-u origin <branch-name>`
 
 The skill will print the branch name as confirmation.
 
-## Step 2: Initial commit
+## Step 2: Verify branch state
 
-If the exp-init files weren't already committed (check `git log` for an "initial create" commit on the new branch), do an initial commit:
-
-```bash
-git add experiments/<exp-id>-* .lablock/locks/<exp-id>.scope.lock
-git commit -m "create <exp-id>"
-```
-
-Hooks will:
-
-- Recognize `current-exp` is set
-- Auto-prefix `[<exp-id>][CODE]`
-- Add `LabLock-Change` trailer
-- Initialize `.lablock/changes/<exp-id>.changes.log`
-- Generate / update `MAP.md` and `experiments/matrix.md` because new hypothesis.md is staged
-
-## Step 3: Verify branch state
-
-After commit, verify:
+After branch creation, verify:
 
 ```bash
 git status            # should be clean
@@ -72,17 +54,17 @@ git branch --show-current   # should be exp/<exp-id>-*
 cat .lablock/state/current-exp   # should be <exp-id>
 ```
 
-Read the new commit log to confirm hooks worked:
+Read the latest commit log to confirm the exp-init commit exists on the base branch:
 
 ```bash
 git log -1 --format="%B"
 ```
 
 Expected:
-- First line: `[<exp-id>][CODE] create <exp-id>`
-- Trailer: `LabLock-Change: chg-XXXXXXXX`
+- A recent commit created `experiments/<exp-id>-*` and `.lablock/locks/<exp-id>.scope.lock`.
+- Generated projections include the new experiment.
 
-## Step 4: Push (optional)
+## Step 3: Push (optional)
 
 If user passed `--push` or you confirmed `origin` is configured:
 
@@ -92,7 +74,7 @@ git push -u origin exp/<exp-id>-<shortname>
 
 If push fails (e.g., remote rejects new branches): tell user to push manually or check repo settings. Don't error out the whole skill.
 
-## Step 5: Final report
+## Step 4: Final report
 
 Print:
 
@@ -101,9 +83,8 @@ Experiment branch ready: exp/<exp-id>-<shortname>
 
 Status:
 - current-exp set to <exp-id>
-- Initial commit created with auto-prefix and LabLock-Change trailer
+- exp-init files were already committed before branch creation
 - Pushed to origin: yes/no
-- changes.log initialized
 
 Drift detection is now active for this branch:
 - Layer 1 (config): <K> keys locked
@@ -115,7 +96,7 @@ Suggested next:
 - Or commit code changes; the hook will track them
 ```
 
-## Step 6: Reminder about scope.lock
+## Step 5: Reminder about scope.lock
 
 Tell the user once, clearly:
 
@@ -140,4 +121,4 @@ Tell the user once, clearly:
 - Don't push without `--push` or explicit user confirmation.
 - Don't `--force` push, ever.
 - Don't try to start an experiment from a paper branch. The base must be `main` or another exp branch (rare).
-- Don't skip Step 3 verification. If hooks didn't fire on initial commit, something is misconfigured.
+- Don't skip Step 2 verification. If the exp-init commit is missing, switch back to the base branch and commit it before starting the experiment branch.

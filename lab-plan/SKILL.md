@@ -1,7 +1,7 @@
 ---
 name: lab-plan
 description: |
-  Convert a vague research idea into a structured, falsifiable research plan. Triggers: "research plan", "research idea", "I'm thinking about X", "let's plan a project", "early-stage planning", "what should I research". Pushes back on vague framings, demands measurable hypotheses, surfaces hidden premises, generates 2-3 implementation alternatives with effort estimates, and recommends the narrowest informative wedge. Output is a markdown document under plans/. Does not design a single experiment—that's `/lab-plan-exp`.
+  Turn a vague research idea into a falsifiable plan. Use for "research plan", "research idea", "early-stage planning", or "what should I research". Produces hypotheses, alternatives, and a narrow recommended wedge under plans/.
 disable-model-invocation: false
 related-skills:
   - lab-plan-exp

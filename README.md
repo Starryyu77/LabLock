@@ -79,6 +79,7 @@ lablock github-protection check --branch=main --required-status=lablock-checks -
 lablock-map
 lablock-verify-scope --exp=exp-001 --source=staged --json
 lablock-frontmatter-check --strict
+lablock-skill-lint
 lablock-coverage --strict
 lablock-drift-audit --strict
 ```

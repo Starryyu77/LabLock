@@ -1,7 +1,7 @@
 ---
 name: lab-formalism-update
 description: |
-  Bump the formalism version with echo-back protocol and cross-file stale check. Triggers: "update formalism", "change loss definition", "bump formalism", "formalism v<N>", "new equation", "redefine attention", "update math". Strict workflow: (1) AI echoes current formalism in LaTeX, user confirms; (2) user describes change; (3) AI proposes diff; (4) bump version with changelog; (5) scan all files for stale references to old version; (6) generate decisions/<date>-formalism-bump-vN.md. Echo-back is non-negotiable—drift between AI's understanding and user's mental model is the #1 cause of subtle bugs in math-heavy code. Side effects: edits formalism.md, generates decision file. User must invoke explicitly.
+  Bump formalism with echo-back and stale-reference checks. Use for "update formalism", "change loss definition", "new equation", or "update math". Edits formalism.md and writes a formalism-bump decision after user confirmation. User-invoked only.
 disable-model-invocation: true
 related-skills:
   - lab-synthesize

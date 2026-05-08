@@ -1,7 +1,7 @@
 ---
 name: lab-handoff
 description: |
-  Package context for an external AI (e.g., ChatGPT web, Claude.ai web, Gemini). Triggers: "handoff", "ask another AI", "external AI", "package context", "send to chatgpt", "ask gpt about". Modes selected via --type: debug | method | results | design | writing. Auto-extracts relevant context (project summary from PROJECT.md, formalism version, related claims, code with two layers of imports, traceback, recent commits) into a self-contained markdown bundle. Output goes to handoffs/outgoing/. Optional --branch flag pushes the bundle to a handoff branch and prints a GitHub URL. This skill writes files to handoffs/.
+  Package self-contained context for another AI or teammate. Use for "handoff", "ask another AI", "send to ChatGPT", or "package context". Modes: debug, method, results, design, writing. Writes handoffs/outgoing/.
 disable-model-invocation: false
 related-skills:
   - lab-debug

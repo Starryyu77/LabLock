@@ -17,7 +17,8 @@
     "lablock-config": "bin/lablock-config.ts",
     "lablock-frontmatter-check": "bin/lablock-frontmatter-check.ts",
     "lablock-lfs-check": "bin/lablock-lfs-check.ts",
-    "lablock-skill-init": "bin/lablock-skill-init.ts"
+    "lablock-skill-init": "bin/lablock-skill-init.ts",
+    "lablock-skill-lint": "bin/lablock-skill-lint.ts"
   },
   "scripts": {
     "test": "bun test",

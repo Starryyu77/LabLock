@@ -1,9 +1,7 @@
 ---
 name: lab-update
 description: |
-  Update the installed LabLock skill package from a reusable local LabLock source. Triggers: "更新 LabLock skill" / "自动更新仓库" / "update LabLock" / "refresh lablock skill" / "同步 LabLock 工具".
-  Use this from any project that already uses LabLock. It refreshes the global Claude/Codex LabLock skill installation, and optionally project-local vendored skill folders, from a local canonical LabLock source. It does not pull from GitHub unless explicitly requested.
-  Side effects: updates per-skill symlinks or copies under ~/.claude/skills/lab-*, ~/.agents/skills/lab-*, and optionally .claude/.agents project skill folders.
+  Update installed LabLock skills from a local canonical source. Use for "update LabLock", "refresh lablock skill", "同步 LabLock 工具", or "自动更新仓库". Updates Claude/Codex skill symlinks or copies; GitHub pull is optional and explicit. User-invoked only.
 disable-model-invocation: true
 related-skills:
   - lab-audit

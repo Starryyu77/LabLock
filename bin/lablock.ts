@@ -332,6 +332,11 @@ async function expFinalize(opts: { exp: string; status: string; tag?: boolean; c
   if (!dir) throw new Error(`Experiment not found: ${opts.exp}`);
   const valid = ['done', 'killed', 'superseded'];
   if (!valid.includes(opts.status)) throw new Error(`--status must be one of: ${valid.join(', ')}`);
+  const branch = await rawGit(['branch', '--show-current']).then((s) => s.trim()).catch(() => '');
+  const expectedPrefix = `exp/${opts.exp}-`;
+  if (!branch.startsWith(expectedPrefix)) {
+    process.stderr.write(`LabLock warning: finalizing ${opts.exp} from branch ${branch || 'DETACHED'}; expected ${expectedPrefix}*. If --tag is used, the tag will point at current HEAD.\n`);
+  }
   const doc = await readFrontmatter(`${dir}/hypothesis.md`);
   await writeFrontmatter(`${dir}/hypothesis.md`, {
     ...doc.frontmatter,

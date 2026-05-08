@@ -1,7 +1,7 @@
 ---
 name: lab-audit
 description: |
-  Project-level health check. Triggers: "audit", "project health", "weekly check", "what's stale", "audit project", "weekly digest". Read-only aggregation of: frontmatter validity, scope drift across active experiments, claim-evidence coverage, orphan files, drift accountability, weekly digest of activity. Modes: default (full), --formalism (formalism consistency), --coverage (claim-evidence), --orphans, --weekly (week digest only). Output: reviews/audit-<date>.md. Never modifies files.
+  Read-only project health check. Use for "audit", "project health", "weekly check", or "what's stale". Aggregates frontmatter, scope drift, claim coverage, orphan files, drift accountability, and weekly activity into reviews/audit-<date>.md.
 disable-model-invocation: false
 related-skills:
   - lab-tidy

@@ -1,7 +1,7 @@
 ---
 name: lab-review
 description: |
-  Review a research plan or experiment design from one of four perspectives. Triggers: "review plan", "审一下计划", "reviewer 2", "feasibility check", "novelty check", "advisor view", "stress test design". Modes are selected via --as: advisor (senior advisor: is this question worth doing? big picture), reviewer2 (adversarial NeurIPS/CVPR reviewer: novelty, baselines, ablations, claim strength), feasibility (compute, data, time accountant), novelty (literature positioning vs lit/). Output goes to reviews/. This skill writes a markdown report; no git side effects.
+  Review a plan or experiment design. Use for "review plan", "reviewer 2", "feasibility check", "novelty check", or "advisor view". Modes: advisor, reviewer2, feasibility, novelty. Writes a report under reviews/.
 disable-model-invocation: false
 related-skills:
   - lab-plan

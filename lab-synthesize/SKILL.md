@@ -1,7 +1,7 @@
 ---
 name: lab-synthesize
 description: |
-  Cross-experiment synthesis: find patterns, propose new claims, identify gaps. Triggers: "synthesize", "what do these experiments tell us", "summary across experiments", "promote claims", "synthesize results", "what's the story". Reads multiple experiments' results.md and frontmatter, compares against current claims.md, proposes new candidate claims with strength labels and evidence pointers, identifies which claims need more experiments to strengthen. Output: synthesis report in reviews/ + a proposed update to claims.md (the user must apply via `/lab-paper-write` or manual edit). This skill writes a markdown report and may suggest claims.md changes; no git side effects.
+  Synthesize results across experiments. Use for "synthesize", "what do these experiments tell us", "summary across experiments", or "what's the story". Proposes claim deltas and evidence gaps in a reviews/ report.
 disable-model-invocation: false
 related-skills:
   - lab-formalism-update

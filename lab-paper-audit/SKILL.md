@@ -1,7 +1,7 @@
 ---
 name: lab-paper-audit
 description: |
-  Verify every claim in paper drafts is backed by evidence in claims.md. Triggers: "audit paper", "claim coverage", "before submission", "paper check", "verify claims", "check paper". Scans paper/drafts/, extracts every claim-like sentence (assertion of fact), matches each to claims.md and paper/claims-to-evidence.md, flags unsupported sentences with severity. Output: paper/audit-report-<date>.md. This is what you run before submission. The audit is the final gate.
+  Audit paper drafts for claim support. Use for "audit paper", "claim coverage", "before submission", or "verify claims". Matches claim-like sentences to claims.md and claims-to-evidence, then writes paper/audit-report-<date>.md.
 disable-model-invocation: false
 related-skills:
   - lab-paper-write

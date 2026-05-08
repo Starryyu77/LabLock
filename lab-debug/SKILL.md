@@ -1,7 +1,7 @@
 ---
 name: lab-debug
 description: |
-  Systematic debugging with the iron law: no fixes without investigation. Triggers: "debug", "this is broken", "why is X failing", "investigate", "training is wrong", "loss exploded", "model produces garbage". Phases: (1) reproduce, (2) trace data flow, (3) form hypotheses, (4) test ONE hypothesis, (5) at most 3 fix attempts before stepping back. Output is a debug log under debug/. This skill writes only to debug/; no git side effects (until the user explicitly commits).
+  Structured debugging. Use for "debug", "why is X failing", "loss exploded", or "investigate". Enforces reproduce -> trace data flow -> form hypotheses -> test one hypothesis. Writes a debug log under debug/; no git side effects.
 disable-model-invocation: false
 related-skills:
   - lab-handoff

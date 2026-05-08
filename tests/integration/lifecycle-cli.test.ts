@@ -56,7 +56,8 @@ afterEach(async () => {
 
 describe('deterministic lifecycle CLI', () => {
   test('finalize, postmortem, and cleanup-pr dry-run', async () => {
-    await run([process.execPath, lablock, 'exp-finalize', '--exp', 'exp-001', '--status', 'killed'], cwd);
+    const finalize = await run([process.execPath, lablock, 'exp-finalize', '--exp', 'exp-001', '--status', 'killed'], cwd);
+    expect(finalize.stderr).toContain('LabLock warning: finalizing exp-001 from branch');
     const hypothesis = await readFile(join(cwd, 'experiments/exp-001-baseline/hypothesis.md'), 'utf8');
     expect(hypothesis).toContain('status: killed');
     const lock = await readFile(join(cwd, '.lablock/locks/exp-001.scope.lock'), 'utf8');

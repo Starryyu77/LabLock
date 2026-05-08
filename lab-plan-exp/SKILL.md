@@ -1,7 +1,7 @@
 ---
 name: lab-plan-exp
 description: |
-  Design a single experiment in detail before creating its scope.lock. Triggers: "design experiment", "plan an experiment", "experiment design", "design ablation", "spec out exp". Specifies independent variable, controlled variables, evaluation metrics, expected outcomes under each hypothesis branch, and kill criteria. Output is a draft document that `/lab-exp-init` will turn into the actual scope.lock. This skill writes only to plans/; no side effects on git or experiments/.
+  Design one experiment before scope.lock creation. Use for "design experiment", "plan an experiment", "design ablation", or "spec out exp". Defines IV, controls, metrics, expected outcomes, and criteria. Writes only to plans/.
 disable-model-invocation: false
 related-skills:
   - lab-plan

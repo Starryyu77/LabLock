@@ -1,7 +1,7 @@
 ---
 name: lab-fork
 description: |
-  Fork an experiment due to scope drift or intentional branching. Triggers: "fork experiment", "fork this exp", "branch from current exp", "create a parallel experiment". Allocates a new exp ID (using next sequential number, no letter suffix), sets `forked_from` and `fork_reason` in the new exp's frontmatter, copies and updates scope.lock to reflect post-drift state (or keeps lock if intentional fork), and marks the original as superseded by default. Often invoked from `/lab-guard` but can be invoked directly. This skill creates files and modifies parent experiment status; user must invoke explicitly.
+  Fork an experiment because of scope drift or intentional branching. Use for "fork experiment" or "branch from current exp". Allocates a new sequential exp ID, records fork metadata, updates scope.lock, and may mark the parent superseded. User-invoked only.
 disable-model-invocation: true
 related-skills:
   - lab-guard

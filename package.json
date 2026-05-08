@@ -1,0 +1,48 @@
+{
+  "name": "lablock",
+  "version": "0.1.0",
+  "description": "Research workflow guardrails for experiment scope, evidence, and paper claims.",
+  "type": "module",
+  "bin": {
+    "lablock": "bin/lablock.ts",
+    "lablock-map": "bin/lablock-map.ts",
+    "lablock-verify-scope": "bin/lablock-verify-scope.ts",
+    "lablock-classify-diff": "bin/lablock-classify-diff.ts",
+    "lablock-update-changelog": "bin/lablock-update-changelog.ts",
+    "lablock-suggest-tag": "bin/lablock-suggest-tag.ts",
+    "lablock-coverage": "bin/lablock-coverage.ts",
+    "lablock-orphans": "bin/lablock-orphans.ts",
+    "lablock-drift-audit": "bin/lablock-drift-audit.ts",
+    "lablock-config": "bin/lablock-config.ts",
+    "lablock-frontmatter-check": "bin/lablock-frontmatter-check.ts",
+    "lablock-lfs-check": "bin/lablock-lfs-check.ts",
+    "lablock-skill-init": "bin/lablock-skill-init.ts"
+  },
+  "scripts": {
+    "test": "bun test",
+    "typecheck": "bunx tsc --noEmit",
+    "doctor": "bun bin/lablock.ts doctor"
+  },
+  "dependencies": {
+    "@inquirer/prompts": "^7.0",
+    "chalk": "^5.3",
+    "commander": "^12.1",
+    "gray-matter": "^4.0",
+    "handlebars": "^4.7",
+    "js-yaml": "^4.1",
+    "simple-git": "^3.27",
+    "ulid": "^2.3",
+    "zod": "^3.23"
+  },
+  "devDependencies": {
+    "@types/handlebars": "^4.1",
+    "@types/js-yaml": "^4.0",
+    "@types/node": "^20.12",
+    "bun-types": "^1.1",
+    "typescript": "^5.4"
+  },
+  "engines": {
+    "bun": ">=1.0.0"
+  },
+  "license": "MIT"
+}

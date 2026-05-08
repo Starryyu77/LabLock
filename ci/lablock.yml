@@ -1,0 +1,53 @@
+name: LabLock Checks
+
+on:
+  pull_request:
+    branches: [main, 'paper/**']
+  push:
+    branches: [main]
+  workflow_dispatch: {}
+
+jobs:
+  lablock-checks:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.0
+
+      - name: Install LabLock dependencies
+        run: bun install
+
+      - name: Read CI mode
+        id: ci_mode
+        run: |
+          MODE=$(bun bin/lablock-config.ts get ci.mode || echo '"warn-only"')
+          MODE=${MODE//\"/}
+          echo "mode=$MODE" >> "$GITHUB_OUTPUT"
+
+      - name: Frontmatter check
+        run: bun bin/lablock-frontmatter-check.ts --strict
+        continue-on-error: ${{ steps.ci_mode.outputs.mode == 'warn-only' }}
+
+      - name: Scope verification
+        run: bun bin/lablock-verify-scope.ts --all-active --source=head --json
+        continue-on-error: ${{ steps.ci_mode.outputs.mode == 'warn-only' }}
+
+      - name: Claim coverage
+        run: bun bin/lablock-coverage.ts --strict
+        continue-on-error: ${{ steps.ci_mode.outputs.mode == 'warn-only' }}
+
+      - name: Drift accountability audit
+        run: bun bin/lablock-drift-audit.ts --strict
+        continue-on-error: ${{ steps.ci_mode.outputs.mode == 'warn-only' }}
+
+      - name: Probes on main
+        if: github.ref == 'refs/heads/main'
+        run: bun bin/lablock-probes.ts --run-on=ci-main
+        continue-on-error: ${{ steps.ci_mode.outputs.mode == 'warn-only' }}

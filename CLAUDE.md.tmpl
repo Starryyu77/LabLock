@@ -1,0 +1,42 @@
+## lablock
+
+This project uses LabLock for research workflow guardrails. Skills are at `~/.claude/skills/lablock/`.
+
+### Available skills
+
+User-invoked skills:
+- `/lab-init`
+- `/lab-exp-init`
+- `/lab-exp-start`
+- `/lab-exp-run`
+- `/lab-guard`
+- `/lab-fork`
+- `/lab-exp-finalize`
+- `/lab-cleanup-pr`
+- `/lab-paper-init`
+- `/lab-formalism-update`
+
+Advisory skills:
+- `/lab-plan`
+- `/lab-plan-exp`
+- `/lab-review`
+- `/lab-autoplan`
+- `/lab-debug`
+- `/lab-handoff`
+- `/lab-synthesize`
+- `/lab-postmortem`
+- `/lab-paper-write`
+- `/lab-paper-audit`
+- `/lab-tidy`
+- `/lab-audit`
+
+### Conventions
+
+- Commit messages: `[exp-NNN][TAG] message`
+- Experiment IDs: `exp-NNN`
+- Drift events must be resolved via `/lab-fork`, `/lab-guard`, or `lablock override`
+
+### Do not
+
+- Do not manually edit `MAP.md`, `experiments/matrix.md`, or `.lablock/state/*`.
+- Do not skip `scope.lock` creation.

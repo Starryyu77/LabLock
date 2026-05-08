@@ -1,0 +1,8 @@
+experiment:
+  required: [id, parent, status, created, hypothesis]
+claim:
+  required: [id, statement, strength, evidence]
+derivation:
+  required: [id, status, related_claims]
+decision:
+  required: [type, created]

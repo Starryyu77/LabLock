@@ -1,0 +1,28 @@
+# {{project_name}} - Index
+
+> Static project map. Updated rarely.
+
+## Top-level files
+
+- [PROJECT.md](PROJECT.md) - project snapshot
+- [formalism.md](formalism.md) - math and algorithms
+- [claims.md](claims.md) - claim list
+- [MAP.md](MAP.md) - dynamic map
+
+## Directories
+
+{{#if modules.gpu}}
+- [`infra/gpu/`](infra/gpu/) - GPU machines, runs, commands
+{{/if}}
+{{#if modules.data}}
+- [`data/`](data/) - datasets and splits
+{{/if}}
+{{#if modules.lit}}
+- [`lit/`](lit/) - literature notes and positioning
+{{/if}}
+- [`experiments/`](experiments/) - experiment tree
+- [`derivations/`](derivations/) - math proofs
+- [`decisions/`](decisions/) - decision log
+- [`reviews/`](reviews/) - review outputs
+- [`handoffs/`](handoffs/) - external AI handoffs
+- [`paper/`](paper/) - paper drafts and outline

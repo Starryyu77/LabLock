@@ -1,0 +1,27 @@
+---
+type: override
+created: {{date}}
+exp_id: {{exp_id}}
+change_id: {{change_id}}
+override_type: scope-drift-acknowledged
+---
+
+# Override: drift in `{{exp_id}}` accepted
+
+## Drift detected
+
+{{#each drift_layers.config}}
+- Config: `{{this.key}}` was `{{this.expected}}`, now `{{this.actual}}`
+{{/each}}
+{{#each drift_layers.files}}
+- File: `{{this.path}}` hash changed
+{{/each}}
+
+## Reason
+
+{{reason}}
+
+## Outcome
+
+- [ ] Update `.lablock/locks/{{exp_id}}.scope.lock` to reflect new invariants.
+- [ ] Or keep lock and accept this as a one-shot exception.

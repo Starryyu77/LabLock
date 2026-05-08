@@ -1,0 +1,44 @@
+---
+id: {{exp_id}}
+parent: {{parent}}
+status: planned
+created: {{date}}
+hypothesis: {{hypothesis}}
+related_claims: []
+forked_from: {{forked_from}}
+fork_reason: {{fork_reason}}
+---
+
+# {{exp_id}}: {{shortname}}
+
+## Hypothesis
+
+{{hypothesis}}
+
+## What changed
+
+{{#each controlled_changes.added}}
+- Added: {{this}}
+{{/each}}
+{{#each controlled_changes.removed}}
+- Removed: {{this}}
+{{/each}}
+{{#each controlled_changes.modified}}
+- Modified: {{this}}
+{{/each}}
+
+## Success criteria
+
+{{#each success_criteria}}
+- {{this}}
+{{/each}}
+
+## Kill criteria
+
+{{#each kill_criteria}}
+- {{this}}
+{{/each}}
+
+## Notes
+
+Add notes as the experiment progresses. Results go in `results.md`.

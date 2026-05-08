@@ -1,0 +1,23 @@
+# LabLock
+.lablock/state/
+.lablock/cache/
+.git/lablock-commit-meta.json
+
+# Dependencies
+node_modules/
+bun.lockb
+
+# Common ML
+*.ckpt
+*.pt
+wandb/
+mlruns/
+outputs/
+__pycache__/
+.ipynb_checkpoints/
+
+# OS/editor
+.DS_Store
+.idea/
+.vscode/
+tests/.tmp/

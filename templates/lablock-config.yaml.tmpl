@@ -1,0 +1,42 @@
+version: 1
+
+ci:
+  mode: {{ci_mode}}
+  enforce_branches: []
+  run_probes_on:
+    - ci-main
+
+git:
+  protected_branches:
+    - main
+    - paper/**
+  protected_tags:
+    - "formalism-v*"
+    - "claim-frozen-*"
+    - "exp-*-final"
+  commit_message_format: "[%scope%][%tag%] %message%"
+  lfs_threshold_mb: 50
+  archive_after_days: 30
+
+experiments:
+  id_format: "exp-%03d"
+  next_id_strategy: max-plus-one
+  status_values: [planned, running, done, killed, superseded]
+
+modules:
+  gpu: {{modules.gpu}}
+  data: {{modules.data}}
+  agents: {{modules.agents}}
+  vision: {{modules.vision}}
+  lit: {{modules.lit}}
+
+drift:
+  layers:
+    config: enabled
+    files: enabled
+    probes: ci-only
+  override_decision_dir: decisions/
+
+paper:
+  default_venue: ""
+  claim_strength_levels: [hypothesis, empirical, derived, assumed]

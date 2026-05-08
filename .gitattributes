@@ -1,0 +1,8 @@
+# LabLock friendly diffs
+*.tex diff=tex
+*.yaml diff=yaml
+*.lock diff=yaml
+
+# LFS suggestions
+# *.ckpt filter=lfs diff=lfs merge=lfs -text
+# *.pt filter=lfs diff=lfs merge=lfs -text

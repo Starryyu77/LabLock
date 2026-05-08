@@ -1,0 +1,58 @@
+exp_id: {{exp_id}}
+shortname: {{shortname}}
+hypothesis: |
+  {{hypothesis}}
+parent: {{parent}}
+created: {{date}}
+status: active
+
+locked_invariants:
+  config:
+{{#each config_invariants}}
+    {{this.key}}: {{this.value}}
+{{/each}}
+  files:
+{{#each file_invariants}}
+    - path: {{this.path}}
+      hash: {{this.hash}}
+      reason: {{this.reason}}
+{{/each}}
+  probes:
+{{#each probes}}
+    - name: {{this.name}}
+      command: {{this.command}}
+      requires: [{{join this.requires ", "}}]
+      timeout_sec: {{this.timeout_sec}}
+      run_on: [{{join this.run_on ", "}}]
+      reason: {{this.reason}}
+{{/each}}
+
+controlled_changes:
+{{#if controlled_changes.added}}
+  added:
+{{#each controlled_changes.added}}
+    - {{this}}
+{{/each}}
+{{/if}}
+{{#if controlled_changes.removed}}
+  removed:
+{{#each controlled_changes.removed}}
+    - {{this}}
+{{/each}}
+{{/if}}
+{{#if controlled_changes.modified}}
+  modified:
+{{#each controlled_changes.modified}}
+    - {{this}}
+{{/each}}
+{{/if}}
+
+kill_criteria:
+{{#each kill_criteria}}
+  - {{this}}
+{{/each}}
+
+success_criteria:
+{{#each success_criteria}}
+  - {{this}}
+{{/each}}

@@ -1,0 +1,114 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+HOST="both"
+TEAM=false
+NO_PROMPTS=false
+
+for arg in "$@"; do
+  case "$arg" in
+    --host=*) HOST="${arg#*=}" ;;
+    --team) TEAM=true ;;
+    --no-prompts) NO_PROMPTS=true ;;
+    *) echo "Unknown option: $arg" >&2; exit 2 ;;
+  esac
+done
+
+LABLOCK_HOME="$(cd "$(dirname "$0")" && pwd)"
+
+echo "LabLock setup"
+echo "  Source: $LABLOCK_HOME"
+echo "  Host:   $HOST"
+echo "  Team:   $TEAM"
+echo
+
+command -v bun >/dev/null 2>&1 || {
+  echo "Bun is not installed." >&2
+  if [ "$NO_PROMPTS" = false ]; then
+    read -r -p "Install Bun now? (y/N) " yn
+    if [ "$yn" = "y" ]; then
+      curl -fsSL https://bun.sh/install | bash
+      export PATH="$HOME/.bun/bin:$PATH"
+    else
+      exit 1
+    fi
+  else
+    exit 1
+  fi
+}
+
+BUN_VERSION=$(bun --version)
+BUN_MAJOR=${BUN_VERSION%%.*}
+if [ "$BUN_MAJOR" -lt 1 ]; then
+  echo "Bun >= 1.0 is required; found $BUN_VERSION" >&2
+  exit 1
+fi
+echo "Bun $BUN_VERSION"
+
+command -v git >/dev/null 2>&1 || { echo "git not found" >&2; exit 1; }
+echo "git $(git --version | awk '{print $3}')"
+
+if ! command -v gh >/dev/null 2>&1; then
+  echo "Warning: gh CLI not found. GitHub features will be unavailable." >&2
+fi
+
+cd "$LABLOCK_HOME"
+bun install
+
+case "$HOST" in
+  claude|both)
+    mkdir -p "$HOME/.claude/skills"
+    rm -rf "$HOME/.claude/skills/lablock"
+    ln -s "$LABLOCK_HOME" "$HOME/.claude/skills/lablock"
+    echo "Claude Code: ~/.claude/skills/lablock -> $LABLOCK_HOME"
+    ;;
+esac
+
+case "$HOST" in
+  codex|both)
+    mkdir -p "$HOME/.agents/skills"
+    rm -rf "$HOME/.agents/skills/lablock"
+    ln -s "$LABLOCK_HOME" "$HOME/.agents/skills/lablock"
+    echo "Codex: ~/.agents/skills/lablock -> $LABLOCK_HOME"
+    ;;
+esac
+
+chmod +x "$LABLOCK_HOME/hooks/"*.sh
+chmod +x "$LABLOCK_HOME/hooks/"*.ts
+chmod +x "$LABLOCK_HOME/bin/"*.ts
+
+mkdir -p "$HOME/.lablock"
+if [ ! -f "$HOME/.lablock/config.yaml" ]; then
+  cat > "$HOME/.lablock/config.yaml" <<EOF
+version: 1
+default_host: $HOST
+auto_upgrade: false
+analytics: off
+editor: ${EDITOR:-vim}
+gh_cli: auto
+EOF
+  echo "Created ~/.lablock/config.yaml"
+fi
+
+if [ "$TEAM" = true ]; then
+  git rev-parse --git-dir >/dev/null 2>&1 || {
+    echo "--team requires being inside a git repository" >&2
+    exit 1
+  }
+  case "$HOST" in
+    claude|both)
+      mkdir -p .claude/skills
+      cp -R "$LABLOCK_HOME" .claude/skills/lablock
+      ;;
+  esac
+  case "$HOST" in
+    codex|both)
+      mkdir -p .agents/skills
+      cp -R "$LABLOCK_HOME" .agents/skills/lablock
+      ;;
+  esac
+fi
+
+echo
+echo "LabLock installed."
+echo "Next: cd your-research-project && run /lab-init"

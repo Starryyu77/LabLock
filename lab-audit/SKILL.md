@@ -1,7 +1,7 @@
 ---
 name: lab-audit
 description: |
-  Project-level health check. Triggers: "audit", "project health", "weekly check", "what's stale".
+  Project-level health check. Triggers: "audit", "project health", "weekly check", "what's stale", "audit project", "weekly digest". Read-only aggregation of: frontmatter validity, scope drift across active experiments, claim-evidence coverage, orphan files, drift accountability, weekly digest of activity. Modes: default (full), --formalism (formalism consistency), --coverage (claim-evidence), --orphans, --weekly (week digest only). Output: reviews/audit-<date>.md. Never modifies files.
 disable-model-invocation: false
 related-skills:
   - lab-tidy
@@ -9,38 +9,168 @@ related-skills:
 
 # /lab-audit
 
-Use this for read-only project health reporting. Never modify files as part of audit unless the user explicitly asks for a separate tidy/apply step.
+You are running a project-level audit. Read-only. The output is a single markdown report under `reviews/`.
 
-## Modes
+## Pre-flight
 
-Support:
+- `--mode=<full|formalism|coverage|orphans|weekly>`: default `full`.
 
-1. Full audit.
-2. `--formalism`: stale formalism references.
-3. `--coverage`: claim/evidence gaps.
-4. `--orphans`: unindexed markdown files.
-5. `--weekly`: recent activity digest.
+The mode flag selects which checks run. `full` runs everything. The narrower modes are for fast spot-checks.
 
-## Checks
+## Mode: weekly
 
-Run or summarize:
+Lightest mode. Just the week's activity:
 
-1. `lablock-frontmatter-check --strict`
-2. `lablock-verify-scope --all-active --source=head --json`
-3. `lablock-coverage --json`
-4. `lablock-orphans --json`
-5. `lablock-drift-audit --json`
-6. Recent commits with `LabLock-Change` trailers.
+- Commits in the last 7 days (count, authors, by branch)
+- Experiments started: list of new exp-IDs with their hypothesis one-liners
+- Experiments finalized: list with status
+- Drift events: any `[SCOPE-DRIFT]` commits
+- Override events: count + brief reasons
+- Open handoffs (`handoffs/outgoing/*` without matching `incoming/*`)
+- Formalism bumps: any `formalism-v*` tags created
 
-## Output
+This is what you'd run every Monday morning. Output is short and scannable.
 
-Write `reviews/audit-YYYY-MM-DD.md` with:
+## Mode: formalism
 
-1. Executive status.
-2. Active experiments.
-3. Drift events.
-4. Claim coverage gaps.
-5. Stale handoffs.
-6. Recommended next actions.
+Run formalism-specific checks:
 
-Keep the report concrete: paths, experiment IDs, change IDs, and exact commands for follow-up.
+1. **Stale references**: grep for old version numbers in `.md`, `.py`, `.ts`, `.tex` outside `experiments/`. Group by version.
+2. **Symbol consistency**: check `formalism.md` symbol table matches what's used in derivations and code comments.
+3. **Version mismatch in claims**: any claim whose `formalism_version` doesn't match `formalism.md`'s current version → list.
+4. **Active experiments running on outdated formalism**: their lock has older `formalism_version` → list (often correct, but flag for awareness).
+
+## Mode: coverage
+
+Run `lablock-coverage --strict --json` and parse:
+
+- Empirical claims with insufficient evidence (< 2 done exps): list each
+- Hypothesis claims that have been around > 30 days without progressing to empirical: list
+- Done experiments not referenced by any claim: list (often unfinished synthesis)
+- Claim strength label / evidence count mismatches: list
+
+## Mode: orphans
+
+Run `lablock-orphans --json` and parse:
+
+- `.md` files in tracked directories not referenced by any index (`INDEX.md`, `MAP.md`, `experiments/matrix.md`, sub-`README.md`).
+- Whitelist exempts: `templates/`, `paper/drafts/.history/`, `tests/fixtures/`, `node_modules/`, `.lablock/cache/`.
+
+For each orphan: suggest where it should be indexed, or whether it should be archived/deleted.
+
+## Mode: full
+
+All of the above, plus:
+
+5. **Frontmatter validity**: run `lablock-frontmatter-check --strict`. Any failures listed.
+6. **Drift accountability**: run `lablock-drift-audit --strict`. Unaccounted SCOPE-DRIFT commits listed.
+7. **All-active scope verification**: run `lablock-verify-scope --all-active --source=head`. Any active experiment whose lock disagrees with current `main` state → flag (could mean a parent merge introduced drift).
+8. **Index freshness**: check that `MAP.md` was regenerated after the latest commit affecting hypothesis or lock files. If stale, suggest running `lablock-map`.
+9. **Postmortem coverage**: experiments with status `killed` or `superseded` but no `postmortem.md` → list.
+10. **`.lablock/learnings.jsonl` size**: report count. If > 1000 entries, suggest archiving.
+
+## Step 1: Run checks
+
+For the selected mode, run the corresponding bin tools, capture JSON output, parse.
+
+## Step 2: Compile report
+
+Save to:
+
+```
+reviews/audit-<date>.md
+```
+
+Format (full mode):
+
+```markdown
+---
+type: audit
+mode: <full|formalism|coverage|orphans|weekly>
+created: <date>
+---
+
+# Project Audit: <date>
+
+## Summary
+
+| Check | Issues |
+|---|---|
+| Frontmatter | <count> |
+| Drift accountability | <count> |
+| Active scope | <count> |
+| Coverage | <count> |
+| Formalism stale refs | <count> |
+| Orphans | <count> |
+| Postmortem coverage | <count> |
+| Index freshness | <fresh|stale> |
+
+**Health verdict**: GREEN / YELLOW / RED
+
+## Weekly digest
+
+<commits, exps, drift events, etc.>
+
+## Detailed findings
+
+### Frontmatter
+- ...
+
+### Drift accountability
+- ...
+
+### ...
+```
+
+## Step 3: Verdict
+
+- **GREEN**: 0 critical issues. Project healthy.
+- **YELLOW**: ≤ 5 minor issues, no critical. Address at convenience.
+- **RED**: any of:
+  - frontmatter validation failures
+  - unaccounted SCOPE-DRIFT
+  - active experiments with current scope drift
+  - empirical claims with no evidence
+
+Print the verdict prominently.
+
+## Step 4: Suggestion list
+
+For each non-empty category, suggest a follow-up:
+
+- **Frontmatter failures** → fix or run `/lab-init --migrate` for legacy files.
+- **Unaccounted drift** → `lablock override` or `/lab-fork` per offending commit.
+- **Active scope drift** → `/lab-guard` per affected experiment.
+- **Coverage gaps** → run experiments to support claims, or weaken claims via `/lab-paper-write`.
+- **Formalism stale refs** → review per file; some may be intentional (postmortems, archived experiments).
+- **Orphans** → add to index or archive.
+- **Missing postmortems** → run `/lab-postmortem --exp=<id>`.
+- **Stale MAP** → run `lablock-map`.
+
+## Step 5: Final report
+
+Print:
+
+```
+Audit complete: reviews/audit-<date>.md
+
+<summary table>
+
+Verdict: <GREEN | YELLOW | RED>
+
+<top 3-5 suggested actions>
+```
+
+## Special cases
+
+- **Just-initialized project**: many checks return empty. That's healthy; report GREEN with note "project just initialized".
+- **Audit during active scope drift**: this is normal mid-experiment; flag but don't fail unless drift is unaccounted.
+- **Audit on a paper branch**: skip experiment-related checks; focus on paper/audit + claims-to-evidence integrity.
+
+## Don't
+
+- Don't modify any files. This is read-only.
+- Don't soft-pedal RED verdicts.
+- Don't run all modes at once if user requested a narrow mode—respect the scope.
+- Don't include the user's git credentials, tokens, or secrets in any output.
+- Don't repeat-spam findings. If the same orphan appeared in last week's audit, mention "(also in last audit)" rather than acting like it's new.

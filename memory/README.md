@@ -28,6 +28,7 @@ The pasted "LabLock — Developer Implementation Specification" is the current i
 - 2026-05-08: Tightened GitHub protection beta-candidate edges: policy verification now requires `required_status_checks.strict == true`; merge-existing preserves dismissal restrictions and bypass pull request allowances; dry-run output includes existing/planned/delta; added minimal `lablock github-ruleset check` for active rules on concrete refs like `paper/draft`.
 - 2026-05-08: Live `lablock github-ruleset check --repo Starryyu77/LabLock --branch main --json` returned `status: no-rules`, confirming the active-rules endpoint is reachable and no repository rules currently apply to `main`.
 - 2026-05-08: Shifted focus from GitHub protection to research-loop dogfood. Added `docs/dogfood.md` controlled dogfood protocol and `tests/integration/dogfood-rehearsal.test.ts`, which rehearses init -> exp-init -> exp-start -> drift block -> override -> finalize -> postmortem -> drift audit.
+- 2026-05-08: Rewrote the 22 original `lab-*` skills from the reviewed long-form drafts in `/Users/starryyu/Downloads/lablock-temp`, keeping `lab-update` as the separate official updater skill. Verification passed with `bun run typecheck`, `bun test` (32 pass), `git diff --check`, and `lablock-frontmatter-check --strict`.
 
 ## Next Checkpoint
 

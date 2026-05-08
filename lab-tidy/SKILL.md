@@ -1,7 +1,7 @@
 ---
 name: lab-tidy
 description: |
-  Audit and tidy the repository. Triggers: "tidy repo", "repo health", "archive old experiments", "clean up branches".
+  Audit and tidy the repository. Triggers: "tidy repo", "clean up branches", "repo health", "archive old experiments", "what should I clean", "repo housekeeping". Reports six categories of issues: orphan branches, dangling commits, stale tracking, oversized non-LFS files, expired handoffs, dead experiments needing archive. Default mode is dry-run (read-only). With `--apply`, walks each item with a yes/no/skip prompt; never destructive without consent. This skill reports without changes by default; with --apply it can rename/delete branches, move files, never destructive without per-item confirmation.
 disable-model-invocation: false
 related-skills:
   - lab-audit
@@ -9,34 +9,166 @@ related-skills:
 
 # /lab-tidy
 
-Use this when the repository has accumulated stale branches, old experiments, orphan files, or oversized artifacts.
+You are doing repository hygiene. Find what's stale, what's mis-located, what's bloating the repo, and (optionally) clean it up. Default is **dry-run**—you only act on items the user explicitly approves.
 
-## Default Mode
+## Pre-flight
 
-Default to dry-run. Do not delete, move, archive, or rename files unless the user explicitly asks for `--apply` and confirms each item.
+- `--apply` (default off): if absent, you only report. If present, you walk each finding with the user.
+- Read `.lablock/config.yaml > git.archive_after_days` (default 30) for the cutoff.
 
-## Inspect
+## Step 1: Scan for issues
 
-Check:
+Run all six checks. Each produces a finding list. Reports go into one structured payload.
 
-1. Git branch state and stale tracking branches.
-2. Old experiments past `git.archive_after_days`.
-3. Oversized non-LFS files.
-4. Orphan markdown files via `lablock-orphans`.
-5. Expired handoffs without incoming responses.
-6. Dirty generated projections: `MAP.md` and `experiments/matrix.md`.
+### Check 1: Orphan branches
 
-## Report
+Branches whose corresponding experiment is `done`, `killed`, or `superseded` AND the branch is older than `archive_after_days`.
 
-Group findings by:
+```bash
+git for-each-ref --format='%(refname:short) %(committerdate:iso)' refs/heads/exp/
+# For each branch, parse the exp-id, look up status from experiments/<exp-id>-*/hypothesis.md
+```
 
-1. Safe automatic cleanup.
-2. Needs user decision.
-3. Destructive or irreversible.
-4. No action recommended.
+Outcome: list of branches → suggest renaming to `archive/<original-name>`.
 
-## Apply Mode
+### Check 2: Dangling commits
 
-When applying, ask item by item. Show exact path, command, and rollback risk before acting.
+Commits not in any branch or tag.
 
-End by recommending `/lab-audit` for a read-only health report if the user wants documentation.
+```bash
+git fsck --no-reflogs --unreachable --no-progress 2>/dev/null | grep '^unreachable commit'
+```
+
+Filter to those older than 14 days (recent dangling commits may be intentional rebases).
+
+Outcome: list with first-line of commit message → suggest GC, but be cautious; don't auto-prune.
+
+### Check 3: Stale tracking branches
+
+Branches that exist locally with `[gone]` upstream (origin deleted them):
+
+```bash
+git remote prune origin --dry-run
+git branch -vv | grep ': gone]'
+```
+
+Outcome: list → suggest `git branch -D <name>` per branch.
+
+### Check 4: Oversized non-LFS files
+
+Files larger than `.lablock/config.yaml > git.lfs_threshold_mb` that are tracked but not via LFS:
+
+```bash
+git ls-files | xargs -I {} stat -c '%s %n' {} 2>/dev/null | awk '$1 > THRESHOLD'
+git check-attr filter <files>   # confirm not LFS
+```
+
+Outcome: list → suggest moving to LFS.
+
+### Check 5: Expired handoff branches
+
+Branches matching `handoff/*` older than 7 days:
+
+```bash
+git for-each-ref --format='%(refname:short) %(committerdate:iso)' refs/heads/handoff/
+```
+
+Outcome: list → suggest deletion.
+
+### Check 6: Dead experiments needing archive
+
+Experiments with `status: killed` or `status: superseded` whose:
+- Postmortem exists (so we have a record)
+- `finalized_at` is older than `archive_after_days`
+
+Suggest moving the branch to `archive/<original-name>` namespace via:
+
+```bash
+git branch -m exp/<exp-id>-<shortname> archive/exp-<exp-id>-<shortname>
+git push origin :exp/<exp-id>-<shortname> archive/exp-<exp-id>-<shortname>   # rename remotely
+```
+
+## Step 2: Report
+
+Print a structured summary, even in dry-run:
+
+```
+LabLock Tidy Report (<date>)
+
+Orphan branches (<N>):
+  - exp/exp-005-baseline (status=done, finalized 45d ago)
+  - exp/exp-009-ood (status=killed, finalized 92d ago)
+
+Dangling commits (<N>):
+  - <hash> "<message>" (created <date>)
+
+Stale tracking (<N>):
+  - <branch> [gone]
+
+Oversized non-LFS (<N>):
+  - <path> (<size>)
+
+Expired handoffs (<N>):
+  - handoff/2026-04-15-debug-nan (8d ago)
+
+Dead experiments to archive (<N>):
+  - exp-005, exp-009
+
+Total findings: <N>
+
+Run with --apply to walk each item with a yes/no/skip prompt.
+```
+
+## Step 3 (only if `--apply`): Walk findings
+
+For each finding, ask: `[Y/n/s]` (yes / no / skip rest of category).
+
+For each "yes":
+
+- **Orphan branch** → `git branch -m exp/... archive/exp-...` and `git push origin :exp/... archive/exp-...`
+- **Dangling commit** → typically don't auto-act. Suggest user run `git gc --prune=now` manually.
+- **Stale tracking** → `git branch -D <name>`
+- **Oversized non-LFS** → don't auto-move. Print the LFS migration command and let user run.
+- **Expired handoff** → `git branch -D <name> && git push origin :<name>`
+- **Dead experiment archive** → same as orphan branch
+
+After each yes, print confirmation. Don't batch errors silently—if a `git push` fails, report immediately.
+
+## Step 4: Save the report
+
+Even in dry-run, save:
+
+```
+reviews/tidy-<date>.md
+```
+
+So the user has a record of what was found and what (if anything) was done.
+
+## Step 5: Final report
+
+Print:
+
+```
+Tidy complete.
+
+Findings: <N>
+Actions taken: <M> (<dry-run/apply mode>)
+
+Items skipped or declined: <K>
+
+Next: review reviews/tidy-<date>.md for details.
+```
+
+## Special cases
+
+- **Concurrent users**: if multiple developers share the repo, deleting branches is destructive. Flag any orphan branch with commits authored by someone other than the current `git config user.email` and require explicit confirmation.
+- **Repo size won't shrink immediately** after deleting branches: explain that `git gc` is needed for actual disk reclamation.
+- **First run**: if findings count is huge (50+), batch by category and ask "process all orphan branches as `--apply` or skip category?".
+
+## Don't
+
+- Don't delete anything in dry-run mode. Default behavior must be safe.
+- Don't auto-`git gc --prune=now`. Suggest it; let user confirm.
+- Don't delete branches authored by someone else without confirmation.
+- Don't take `--apply` as license to skip per-item confirmations. Each finding needs explicit yes.
+- Don't operate on `main` or `paper/*`—they're protected, not orphaned.

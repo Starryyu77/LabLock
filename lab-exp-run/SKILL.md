@@ -1,8 +1,7 @@
 ---
 name: lab-exp-run
 description: |
-  Begin running an experiment. Triggers: "run experiment", "start training", "kick off exp".
-  User-invoked only: this skill writes current-exp state and run notes, then prints the command to execute.
+  Begin running an experiment. Triggers: "run experiment", "start training", "kick off exp", "launch run". Verifies scope.lock pre-flight, sets .lablock/state/current-exp, updates infra/gpu/runs.md, and prints the canonical training command for the user to execute. Does NOT submit a job—LabLock has no opinion on your training infrastructure. The user runs the printed command. This skill writes state files and modifies infra/; user must invoke explicitly.
 disable-model-invocation: true
 related-skills:
   - lab-exp-init
@@ -12,31 +11,121 @@ related-skills:
 
 # /lab-exp-run
 
-Use this immediately before launching a training, evaluation, or experimental run.
+You are starting an experiment run. The user has done `/lab-exp-init` and `/lab-exp-start`; now they want to actually launch training.
+
+LabLock does not own job submission. You will print the command and the user will run it (locally, via tmux, via Slurm—not your concern).
 
 ## Pre-flight
 
-1. Resolve the experiment ID. Prefer `.lablock/state/current-exp`; otherwise ask.
-2. Confirm the current branch belongs to the experiment or that the user intentionally runs elsewhere.
-3. Run `lablock-verify-scope --exp=<exp> --source=working --json`.
-4. If project config sets `drift.layers.probes` to `local` or `both`, run the relevant local probes before launch.
-5. Check for obvious dirty unrelated files with `git status --short`.
+1. **Verify exp branch.** Run `git branch --show-current`. Should match `exp/<exp-id>-<shortname>`. If not, refuse: "Switch to the experiment branch first, or run `/lab-exp-start`."
+2. **Verify clean tree.** Run `git status --porcelain`. Reject if dirty: "Commit or stash before running."
+3. **Verify scope.lock pre-flight.** Run:
+   ```bash
+   lablock-verify-scope --exp=<exp-id> --source=working --layers=config,files
+   ```
+   If it returns drift, **refuse to start**: "Working tree differs from scope.lock. Address drift before launching the run, or your results won't reflect the locked invariants."
+4. **Read `.lablock/locks/<exp-id>.scope.lock`** to extract:
+   - `config` invariants (will be passed to training)
+   - `kill_criteria` (display to user)
+   - `success_criteria` (display)
 
-## Collect Run Metadata
+## Step 1: Set current-exp
 
-Ask for:
+Write the exp-id to `.lablock/state/current-exp` so all subsequent commits on this branch are tracked to this experiment:
 
-1. Run command.
-2. Expected output directory or tracking system.
-3. GPU/data/network needs.
-4. Kill criterion threshold to watch first.
+```bash
+echo "<exp-id>" > .lablock/state/current-exp
+```
 
-## Execute
+This is gitignored; doesn't pollute the tree.
 
-1. Write `.lablock/state/current-exp` with the experiment ID.
-2. Append a concise entry to `infra/gpu/runs.md` if that file or module exists.
-3. Print the canonical command for the user to execute. Do not submit long-running jobs unless the user explicitly asks.
+## Step 2: Update GPU runs ledger
 
-## Final Report
+Append a row to `infra/gpu/runs.md`:
 
-Report the experiment ID, scope verification status, run command, expected artifacts, and which kill criterion should be checked first.
+```markdown
+| Date | Exp | Machine | GPU | Started | Expected | Status |
+|---|---|---|---|---|---|---|
+| 2026-05-08 | exp-007 | gpu-host-3 | 4× A100 | 14:23 | 2 days | running |
+```
+
+Ask the user for: machine, GPU spec, expected duration. If `infra/gpu/machines.md` exists, suggest from that list.
+
+## Step 3: Print canonical run command
+
+Construct the training command. The exact form depends on the project, but should:
+
+- Reference the experiment config: `experiments/<exp-id>-<shortname>/config.yaml`
+- Set output directory: `experiments/<exp-id>-<shortname>/outputs/`
+- Set the seed from scope.lock
+- Set log directory: `experiments/<exp-id>-<shortname>/logs/`
+
+If the project has an existing convention (e.g., `python train.py --config=...`), use it. Otherwise, suggest a generic form and ask the user to confirm.
+
+Print clearly:
+
+```bash
+# Run from the repo root, on the GPU machine:
+python train.py \
+  --config=experiments/exp-007-contrastive/config.yaml \
+  --output=experiments/exp-007-contrastive/outputs \
+  --seed=42 \
+  --log_dir=experiments/exp-007-contrastive/logs
+
+# Or, if using your job submission script:
+sbatch scripts/submit.sh experiments/exp-007-contrastive/config.yaml
+```
+
+## Step 4: Display run reminders
+
+Before user runs the command, display:
+
+```
+Run reminders for <exp-id>:
+
+Hypothesis: <from hypothesis.md>
+
+Kill if any of:
+  - <kill criterion 1>
+  - <kill criterion 2>
+
+Success means:
+  - <success criterion 1>
+  - <success criterion 2>
+
+Drift detection is active. Any commit that changes:
+  - locked config keys, or
+  - locked file SHAs
+  will be rejected by pre-commit unless you /lab-fork or `lablock override`.
+
+When done:
+  /lab-exp-finalize --exp=<exp-id> --status=<done|killed|superseded>
+```
+
+## Step 5: Commit the state changes
+
+```bash
+git add infra/gpu/runs.md
+git commit -m "begin run for <exp-id>"
+```
+
+Hooks will add the LabLock scope/tag prefix and `LabLock-Change` trailer.
+
+## Step 6: Final reminder
+
+Tell the user clearly:
+
+> The training command has been printed but NOT executed by LabLock. Run it yourself when ready. While the run is in progress, normal commits work as usual—drift detection will catch any unintended changes to locked invariants.
+
+## Failure modes
+
+- **Verify-scope returns drift before run starts** → refuse. The user must clean up first.
+- **`infra/gpu/machines.md` missing** → don't fail; suggest creating it via `/lab-init` Layer 2 modules, but proceed anyway with user-supplied machine info.
+- **Already on a different exp branch's `current-exp`** → warn, ask user to confirm switching focus.
+
+## Don't
+
+- Don't actually execute the training command. Print only.
+- Don't skip Step 3 verify-scope. Running an experiment with drifted setup is the bug LabLock exists to prevent.
+- Don't make assumptions about training infrastructure. Ask, or use generic template, but don't pretend to know.
+- Don't write to results.md from this skill. Results come from the actual run, not from setup.

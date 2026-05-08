@@ -1,62 +1,118 @@
 ---
 name: lab-init
 description: |
-  Initialize a new LabLock research project. Triggers: "init project", "new research repo", "set up LabLock", "start a new research repo".
-  User-invoked only: this skill creates files, installs Git hooks, writes host settings, and may configure GitHub.
+  Initialize a new LabLock research project from scratch. Triggers: "init project", "set up LabLock", "new research repo", "新建科研项目", "start LabLock here". Creates the directory skeleton (PROJECT.md, formalism.md, claims.md, .lablock/, experiments/, decisions/, etc.), installs git hooks, writes injected sections to CLAUDE.md and AGENTS.md, generates the GitHub Actions CI workflow, and records the project config. This skill writes many files and modifies git config; user must invoke explicitly.
 disable-model-invocation: true
 related-skills:
   - lab-exp-init
-  - lab-update
 ---
 
 # /lab-init
 
-Use this skill only when the user explicitly asks to initialize a repository with LabLock.
+You are initializing a LabLock research project. Walk the user through the steps in order. Do not batch questions—ask one at a time when input is needed. Do not skip the pre-flight checks.
 
 ## Pre-flight
 
-1. Verify this is a Git repository with `git rev-parse --git-dir`.
-2. If it is not a Git repository, ask before running `git init`.
-3. Abort if `.lablock/` already exists. Tell the user the project appears initialized.
-4. Run `lablock doctor` when available and report missing prerequisites.
-5. Confirm the canonical LabLock source is available at `~/.lablock/source` or `LABLOCK_HOME`.
+Before doing anything, verify:
 
-## Collect Inputs
+1. **Inside a git repository.** Run `git rev-parse --git-dir`. If it fails, ask the user: "This directory is not a git repository. Run `git init` first?" If yes, run it; if no, abort.
+2. **Not already initialized.** If `.lablock/config.yaml` exists, abort with: "This project is already initialized. Run `/lab-audit` for project health, or remove `.lablock/` to start over."
+3. **Prerequisites.** Run `lablock doctor` and report any ✗ items. The user can proceed without `gh` (some features will be unavailable) but cannot proceed without Bun or git.
 
-Ask one question at a time:
+## Step 1: Project metadata
 
-1. Project name. Default to the directory name.
-2. One-line research domain.
-3. Initial hypothesis in one sentence.
-4. Enabled modules: `gpu`, `data`, `agents`, `vision`, `lit`.
-5. CI mode: `warn-only` for solo/dogfood, `enforce` for protected team branches.
-6. Optional GitHub remote setup: none, create private/public, or link existing.
+Ask the user, one question at a time:
 
-## Execute
+- **Project name** — default to the current directory's basename. Used in `PROJECT.md`.
+- **Research domain** — one line, e.g., "vision-language pretraining", "LLM agent reasoning", "video understanding".
+- **Initial hypothesis** — one sentence. Vague is OK at this stage; the user will refine in `/lab-plan`. But push back gently on hypotheses with no measurable claim ("X works well" → "X improves Y by N%").
 
-Run the deterministic initializer:
+## Step 2: Layer 2 modules
+
+Show the available modules with default selections based on the domain heuristic:
+
+- vision/CV → `gpu`, `data`, `vision`
+- LLM/NLP → `gpu`, `data`, `lit`
+- Agents → `gpu`, `agents`
+- ML systems → `gpu`
+
+Confirm with the user. They can override with any subset of `gpu, data, agents, vision, lit`. The choice goes into `.lablock/config.yaml` under `modules:`.
+
+## Step 3: CI mode
+
+Explain the trade-off plainly:
+
+- `warn-only` — CI runs but doesn't block merges. Recommended for solo work and migration.
+- `enforce` — CI must pass to merge to protected branches. Recommended for teams and new projects.
+
+Default `warn-only`. Confirm.
+
+## Step 4: GitHub remote (optional)
+
+Ask: "Configure a GitHub remote now?"
+
+- `none` — skip
+- `create-private` — `gh repo create <name> --private --source=. --remote=origin`
+- `create-public` — same but public
+- `link-existing` — ask for URL, run `git remote add origin <url>`
+
+If a remote was created or linked, also offer to set branch protection on `main`. If yes, run `lablock github-protection apply --branch=main --required-status=lablock-checks --required-reviews=1 --dry-run --json` after the first push, then apply for real after the user reviews the payload.
+
+## Step 5: Generate skeleton
+
+Run:
 
 ```bash
-lablock init-project --name="<name>" --modules=<csv> --ci-mode=<warn-only|enforce>
+lablock init-project \
+  --name="<project-name>" \
+  --modules="<csv-of-modules>" \
+  --ci-mode="<warn-only|enforce>" \
+  --goal="<one-line-domain>" \
+  --hypothesis="<initial-hypothesis>"
 ```
 
-If GitHub remote setup was requested, use `gh` only after confirming authentication. For branch protection, prefer a dry-run first:
+This single command:
+
+- creates all directories (`.lablock/`, `experiments/`, `decisions/`, `reviews/`, `handoffs/`, `paper/`, etc.)
+- renders all templates (`PROJECT.md`, `formalism.md`, `claims.md`, `INDEX.md`, `MAP.md`, `experiments/matrix.md`, `.gitignore`, `.gitattributes`, `.claude/settings.json`)
+- writes `.lablock/config.yaml` with the user's choices
+- writes `.github/workflows/lablock.yml`
+- injects `## lablock` sections into `CLAUDE.md` and `AGENTS.md`
+- installs git hooks (symlinks first, copy fallback) into `.git/hooks/`
+
+## Step 6: Initial commit
+
+Stage and commit:
 
 ```bash
-lablock github-protection apply --branch=main --required-status=lablock-checks --required-reviews=1 --dry-run --json
+git add .
+git commit -m "[main] LabLock: initialize project"
 ```
 
-## Verify
+The pre-commit hook will run for the first time. If it complains about anything, that's a real issue—don't `--no-verify`. Resolve it.
 
-1. Confirm `.lablock/config.yaml`, `PROJECT.md`, `formalism.md`, `claims.md`, `INDEX.md`, `MAP.md`, and `experiments/matrix.md` exist.
-2. Confirm hooks exist under `.git/hooks/`.
-3. Confirm `CLAUDE.md` and `AGENTS.md` contain a LabLock section.
-4. Run `lablock-frontmatter-check --strict`.
+## Step 7: Final report
 
-## Final Report
+Print a clean summary:
 
-Report the created project name, CI mode, enabled modules, hook status, GitHub status, and next step:
+- Files created — show count, not full list
+- Hooks installed — list the 5 names (`pre-commit`, `prepare-commit-msg`, `commit-msg`, `post-commit`, `pre-push`)
+- CLAUDE.md / AGENTS.md status — created, appended, or replaced existing `## lablock` section
+- GitHub remote — none / created / linked
+- Next step: "Run `/lab-plan` to design your first research direction, or `/lab-exp-init` if you already know what to test."
 
-```text
-Next: run /lab-exp-init to create the first experiment.
-```
+## Failure modes
+
+If `init-project` fails partway through, **do not leave the project in a half-initialized state**:
+
+- Remove anything created under `.lablock/`, `experiments/`, etc.
+- Restore `CLAUDE.md` / `AGENTS.md` from any backup (the implementation makes these idempotent—if user had existing content, the inject is reversible).
+- Do not delete the user's git repository or any pre-existing files.
+
+Print the failure reason clearly with stderr captured.
+
+## Don't
+
+- Don't skip Step 6 (initial commit). Without it, the project has no baseline and the first real commit will sweep up bootstrap files.
+- Don't run `lablock init-project` twice in the same directory. Detect existing `.lablock/config.yaml` first.
+- Don't promise GitHub branch protection without `gh` available. Check `lablock doctor` first.

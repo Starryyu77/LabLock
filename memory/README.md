@@ -27,7 +27,8 @@ The pasted "LabLock — Developer Implementation Specification" is the current i
 - 2026-05-08: Live GitHub checks after policy upgrade behaved as intended: `check --strict` for `Starryyu77/LabLock/main` exited 1 with `status: unavailable` on GitHub API 403, and `apply --replace --dry-run` printed the planned branch protection payload without writing settings.
 - 2026-05-08: Tightened GitHub protection beta-candidate edges: policy verification now requires `required_status_checks.strict == true`; merge-existing preserves dismissal restrictions and bypass pull request allowances; dry-run output includes existing/planned/delta; added minimal `lablock github-ruleset check` for active rules on concrete refs like `paper/draft`.
 - 2026-05-08: Live `lablock github-ruleset check --repo Starryyu77/LabLock --branch main --json` returned `status: no-rules`, confirming the active-rules endpoint is reachable and no repository rules currently apply to `main`.
+- 2026-05-08: Shifted focus from GitHub protection to research-loop dogfood. Added `docs/dogfood.md` controlled dogfood protocol and `tests/integration/dogfood-rehearsal.test.ts`, which rehearses init -> exp-init -> exp-start -> drift block -> override -> finalize -> postmortem -> drift audit.
 
 ## Next Checkpoint
 
-Next hardening target: GitHub ruleset apply/compliance for pattern branches, richer probe templates, and more complete claim/paper audit parsing.
+Next hardening target: run controlled dogfood in a real research repo for 3-5 days, then fix the highest-friction `scope.lock`, hook, and audit issues before expanding probe templates or claim/paper parsing.

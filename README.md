@@ -230,6 +230,16 @@ lablock github-ruleset check --branch=paper/draft --strict --json
 
 私有仓库在免费账号下可能会返回 GitHub API `403`；LabLock 会把这种状态报告成 `unavailable`，而不是误判为已保护。
 
+## Controlled dogfood
+
+当前版本的下一步不是继续扩展 GitHub protection，而是在真实科研仓库里试跑完整闭环：
+
+```text
+lab-init -> exp-init -> exp-start -> drift -> override/fork -> finalize -> audit
+```
+
+执行协议见 [`docs/dogfood.md`](docs/dogfood.md)。dogfood 期间重点记录 friction：哪些 hook 太烦、哪些 lock 字段难填、哪些 audit 输出没有用、哪一次 drift 被正确拦住。
+
 ## 核心数据结构
 
 | 文件 | 作用 |
@@ -255,11 +265,11 @@ bun run typecheck
 当前测试覆盖：
 
 - unit tests：schema、frontmatter、lock、changes、classify、meta、change-index、ulid
-- integration tests：init -> exp-init -> drift block -> override -> fork -> drift audit
+- integration tests：init -> exp-init -> exp-start -> drift block -> override/fork -> finalize -> postmortem -> drift audit
 - branch protection tests：protected branch/tag deletion、force-push 拒绝、真实 `pre-push` hook stdin 路径
 
 ## 状态
 
-当前版本：`0.1.0`
+当前版本：`0.1.0 beta-candidate`
 
-实现目标：LabLock v3 Phase 0 可运行骨架。后续重点是更完整的 probe templates、更强的 claim/paper parser、真实 GitHub branch protection API 配置和更多迁移场景。
+实现目标：LabLock v3 Phase 0 可运行骨架，进入 controlled dogfood。后续重点是用真实科研项目验证 `scope.lock -> drift -> fork/override -> finalize -> audit` 闭环，再补 probe templates 和 claim/paper parser。

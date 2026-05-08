@@ -138,6 +138,11 @@ export async function getBranchProtection(branch: string, repo?: string): Promis
   return JSON.parse(await gh(['api', `repos/${nameWithOwner}/branches/${branch}/protection`]));
 }
 
+export async function getBranchRules(branch: string, repo?: string): Promise<unknown> {
+  const nameWithOwner = repo ?? await currentRepo();
+  return JSON.parse(await gh(['api', `repos/${nameWithOwner}/rules/branches/${encodeURIComponent(branch)}`]));
+}
+
 export async function setBranchProtection(
   branch: string,
   rules: {

@@ -25,7 +25,9 @@ The pasted "LabLock — Developer Implementation Specification" is the current i
 - 2026-05-08: Upgraded GitHub protection from read/apply to policy verification: `check` now reports `compliance`, `missing`, and `dangerous`; `--strict` exits nonzero on unavailable/skipped/noncompliant states; `apply` requires `--required-status` unless explicitly overridden, supports `--dry-run`, and defaults to merge-existing rather than replacement.
 - 2026-05-08: `github-protection apply --dry-run` merge mode now preserves existing status contexts and stricter PR review settings while adding LabLock-required contexts/review minimums.
 - 2026-05-08: Live GitHub checks after policy upgrade behaved as intended: `check --strict` for `Starryyu77/LabLock/main` exited 1 with `status: unavailable` on GitHub API 403, and `apply --replace --dry-run` printed the planned branch protection payload without writing settings.
+- 2026-05-08: Tightened GitHub protection beta-candidate edges: policy verification now requires `required_status_checks.strict == true`; merge-existing preserves dismissal restrictions and bypass pull request allowances; dry-run output includes existing/planned/delta; added minimal `lablock github-ruleset check` for active rules on concrete refs like `paper/draft`.
+- 2026-05-08: Live `lablock github-ruleset check --repo Starryyu77/LabLock --branch main --json` returned `status: no-rules`, confirming the active-rules endpoint is reachable and no repository rules currently apply to `main`.
 
 ## Next Checkpoint
 
-Next hardening target: GitHub rulesets for pattern branches, richer probe templates, and more complete claim/paper audit parsing.
+Next hardening target: GitHub ruleset apply/compliance for pattern branches, richer probe templates, and more complete claim/paper audit parsing.

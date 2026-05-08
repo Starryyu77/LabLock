@@ -206,7 +206,7 @@ lablock update-skills --host=both --scope=auto
 lablock github-protection check --branch=main --required-status=lablock-checks --required-reviews=1 --strict --json
 ```
 
-输出会包含 `compliance`、`missing`、`dangerous`。`--strict` 下，只要 GitHub protection 不可访问、不存在、跳过 pattern branch，或保护规则不符合 LabLock policy，命令就会退出 1。
+输出会包含 `compliance`、`missing`、`dangerous`。LabLock policy 默认要求指定 status context 存在、`required_status_checks.strict == true`、review 数量达标、admin enforcement 开启、禁止 force push / branch deletion。`--strict` 下，只要 GitHub protection 不可访问、不存在、跳过 pattern branch，或保护规则不符合 LabLock policy，命令就会退出 1。
 
 如果权限允许，可以先 dry-run：
 
@@ -214,13 +214,19 @@ lablock github-protection check --branch=main --required-status=lablock-checks -
 lablock github-protection apply --branch=main --required-status=lablock-checks --required-reviews=1 --dry-run --json
 ```
 
-确认 planned payload 后再显式 apply：
+dry-run 会输出 `existing_summary`、`planned_payload` 和 `delta`，其中 `delta` 标出 `added`、`changed`、`preserved`、`possibly_dropped`。确认 planned payload 后再显式 apply：
 
 ```bash
 lablock github-protection apply --branch=main --required-status=lablock-checks --required-reviews=1
 ```
 
-`apply` 必须传 `--required-status`，除非显式写 `--allow-no-required-status`。默认是 `merge-existing`，会尽量保留已有 GitHub protection 的已知设置；如果你要用 LabLock 最小策略替换现有配置，必须显式加 `--replace`。
+`apply` 必须传 `--required-status`，除非显式写 `--allow-no-required-status`。默认是 `merge-existing`，会尽量保留已有 GitHub protection 的已知设置，包括已有 status contexts、更严格的 review 数量、code owner review、dismissal restrictions 和 bypass allowances；如果你要用 LabLock 最小策略替换现有配置，必须显式加 `--replace`。
+
+`paper/**` 这类 pattern branch 不走 classic branch protection endpoint。可以用 active rules 读取命令检查某个具体 ref 会命中哪些 rulesets/rules：
+
+```bash
+lablock github-ruleset check --branch=paper/draft --strict --json
+```
 
 私有仓库在免费账号下可能会返回 GitHub API `403`；LabLock 会把这种状态报告成 `unavailable`，而不是误判为已保护。
 

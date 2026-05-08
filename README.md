@@ -23,10 +23,55 @@ LabLock 的做法是：
 
 ## 安装
 
+### 推荐：复制给 AI 自动安装
+
+如果你正在使用 Claude Code、Codex 或其他本地 coding agent，可以直接复制下面这一段发给 AI：
+
+```text
+请在我的电脑上安装 LabLock skills。按外部用户安装路径执行，不要使用任何本地开发仓库。
+
+目标：
+- 从 GitHub 安装 https://github.com/Starryyu77/LabLock
+- canonical source 使用 ~/.lablock/source
+- 同时安装 Claude Code 和 Codex 的 per-skill symlink
+- 安装完成后做验收
+
+请执行：
+
+curl -fsSL https://raw.githubusercontent.com/Starryyu77/LabLock/main/install.sh | bash -s -- --host=both --no-prompts
+
+然后验证：
+
+git -C ~/.lablock/source remote -v
+git -C ~/.lablock/source log -1 --oneline
+bun ~/.lablock/source/bin/lablock-skill-lint.ts
+bun ~/.lablock/source/bin/lablock.ts doctor
+readlink ~/.claude/skills/lab-init
+readlink ~/.agents/skills/lab-init
+readlink ~/.claude/skills/lab-update
+readlink ~/.agents/skills/lab-update
+
+验收标准：
+- ~/.lablock/source 是从 GitHub clone 的 LabLock 仓库。
+- ~/.claude/skills/lab-* 和 ~/.agents/skills/lab-* 是逐个 skill symlink。
+- lab-init 和 lab-update 都指向 ~/.lablock/source/lab-init / ~/.lablock/source/lab-update。
+- lablock-skill-lint 通过。
+- doctor 至少显示 Bun 和 git 可用。
+
+如果缺 Bun，请先告诉我，不要静默安装。
+```
+
+只安装某一个 host，可以把命令里的 `--host=both` 改成：
+
 ```bash
-git clone https://github.com/Starryyu77/LabLock.git
-cd LabLock
-./setup --no-prompts
+--host=claude
+--host=codex
+```
+
+### 手动安装
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/Starryyu77/LabLock/main/install.sh | bash -s -- --host=both --no-prompts
 ```
 
 安装后会把 LabLock implementation 放在：
@@ -41,8 +86,8 @@ cd LabLock
 只安装某个 host：
 
 ```bash
-./setup --host=claude --no-prompts
-./setup --host=codex --no-prompts
+curl -fsSL https://raw.githubusercontent.com/Starryyu77/LabLock/main/install.sh | bash -s -- --host=claude --no-prompts
+curl -fsSL https://raw.githubusercontent.com/Starryyu77/LabLock/main/install.sh | bash -s -- --host=codex --no-prompts
 ```
 
 ## 初始化一个科研项目

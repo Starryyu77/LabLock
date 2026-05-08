@@ -10,6 +10,10 @@ inputs:
     type: path
     required: false
     default: LABLOCK_HOME or ~/.lablock/source
+  - name: ref
+    type: git ref
+    required: false
+    default: current canonical source branch
   - name: host
     type: enum (claude, codex, both)
     required: false
@@ -72,6 +76,12 @@ Global update for both hosts:
 lablock update --host=both --scope=global
 ```
 
+Install a preview branch, tag, or commit explicitly:
+
+```bash
+lablock update --ref codex/experiment-dashboard --host=both --scope=global
+```
+
 Update only Codex:
 
 ```bash
@@ -99,6 +109,7 @@ lablock update --no-pull --no-install --host=both --scope=global
 ## Safety Rules
 
 - `/lab-update` means the user wants the latest LabLock release; `lablock update` pulls by default.
+- Use `--ref` only when the user explicitly wants a preview branch, tag, or commit. Do not silently move users off the stable branch.
 - Use `lablock update --no-pull --no-install` only when the user explicitly wants a local refresh without GitHub.
 - Prefer symlinks for global installs so future LabLock repo updates are reused automatically.
 - If a target is already a directory copy, update it by copying over from the source; do not delete user files manually.

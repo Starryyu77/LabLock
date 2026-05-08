@@ -205,6 +205,7 @@ LabLock skills 分两类：
 **会做什么**：
 
 - 运行 `lablock update`。
+- 可选 `--ref`：先 fetch/switch 到用户明确指定的 preview branch、tag 或 commit。
 - 在 canonical source 中 `git pull --ff-only`。
 - 运行 `bun install`。
 - 刷新 `~/.claude/skills/lab-*` 和 `~/.agents/skills/lab-*`。

@@ -284,6 +284,14 @@ lablock update
 lablock update --dry-run
 ```
 
+安装一个明确的预览分支 / tag / commit：
+
+```bash
+lablock update --ref codex/experiment-dashboard
+```
+
+`--ref` 会先在 canonical source 中执行 `git fetch origin <ref>` 并切到该 ref，再继续 `git pull --ff-only`、`bun install` 和 skill 刷新。不传 `--ref` 时，`lablock update` 仍然只更新当前 stable 分支。
+
 只刷新本地 skill 链接、不拉 GitHub、不重装依赖：
 
 ```bash

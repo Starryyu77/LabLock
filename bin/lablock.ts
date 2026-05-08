@@ -1052,11 +1052,39 @@ async function runExternal(args: string[], cwd: string): Promise<{ stdout: strin
   return { stdout, stderr };
 }
 
+function validateUpdateRef(ref: string): string {
+  const trimmed = ref.trim();
+  if (!trimmed) throw new Error('--ref must not be empty');
+  if (trimmed.startsWith('-')) throw new Error('--ref must not start with "-"');
+  if (/[\s\0]/.test(trimmed)) throw new Error('--ref must not contain whitespace or null bytes');
+  if (trimmed.includes('..')) throw new Error('--ref must not contain ".."');
+  return trimmed;
+}
+
+async function switchSourceRef(source: string, ref: string): Promise<void> {
+  const target = validateUpdateRef(ref);
+  await rawGit(['-C', source, 'fetch', 'origin', target]);
+  try {
+    await rawGit(['-C', source, 'switch', target]);
+    return;
+  } catch {
+    // New preview branches usually exist only on origin until first use.
+  }
+  try {
+    await rawGit(['-C', source, 'switch', '-c', target, `origin/${target}`]);
+    return;
+  } catch {
+    // Tags or commit-ish refs can still be installed in detached HEAD mode.
+  }
+  await rawGit(['-C', source, 'checkout', 'FETCH_HEAD']);
+}
+
 async function updateLabLock(opts: {
   source?: string;
   host?: string;
   scope?: string;
   mode?: string;
+  ref?: string;
   pull?: boolean;
   install?: boolean;
   dryRun?: boolean;
@@ -1066,12 +1094,15 @@ async function updateLabLock(opts: {
   const shouldPull = opts.pull !== false;
   const shouldInstall = opts.install !== false;
   const dryRun = Boolean(opts.dryRun);
+  const ref = opts.ref ? validateUpdateRef(opts.ref) : null;
 
   const steps = {
+    git_ref: ref ? (dryRun ? 'would-run' : 'ran') : 'skipped',
     git_pull: shouldPull ? (dryRun ? 'would-run' : 'ran') : 'skipped',
     bun_install: shouldInstall ? (dryRun ? 'would-run' : 'ran') : 'skipped',
   };
 
+  if (ref && !dryRun) await switchSourceRef(source, ref);
   if (shouldPull && !dryRun) await rawGit(['-C', source, 'pull', '--ff-only']);
   if (shouldInstall && !dryRun) await runExternal(['bun', 'install'], source);
 
@@ -1085,6 +1116,7 @@ async function updateLabLock(opts: {
 
   const payload = {
     source,
+    ref,
     steps,
     skill_update: skillUpdate,
   };
@@ -1095,6 +1127,8 @@ async function updateLabLock(opts: {
   }
 
   console.log(`LabLock source: ${source}`);
+  if (ref) console.log(`git ref: ${ref}`);
+  console.log(`git fetch/switch ref: ${steps.git_ref}`);
   console.log(`git pull --ff-only: ${steps.git_pull}`);
   console.log(`bun install: ${steps.bun_install}`);
   for (const item of skillUpdate.results) console.log(`${item.label}:${item.skill}: ${item.result} -> ${item.path}`);
@@ -1177,6 +1211,7 @@ program.command('init-project')
 program.command('update')
   .description('Upgrade the installed LabLock source and refresh installed skills')
   .option('--source <path>', 'LabLock source repo; defaults to LABLOCK_HOME or detected install')
+  .option('--ref <git-ref>', 'preview branch/tag/commit to fetch and install before refreshing skills')
   .option('--host <host>', 'claude | codex | both', 'both')
   .option('--scope <scope>', 'global | project | both | auto', 'global')
   .option('--mode <mode>', 'symlink | copy', 'symlink')

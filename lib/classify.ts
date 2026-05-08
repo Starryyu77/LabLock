@@ -75,7 +75,6 @@ export function suggestTag(classified: ClassifiedFile[], lock: ScopeLock | null)
   if (lock) {
     const invariantFiles = new Set(lock.locked_invariants.files?.map((f) => f.path) ?? []);
     if (classified.some((f) => invariantFiles.has(f.path))) return 'SCOPE-DRIFT';
-    if (classified.some((f) => f.reasons.some((r) => r.startsWith('scope-drift-config:')))) return 'SCOPE-DRIFT';
   }
   if (classified.every((f) => f.category === 'claim')) return 'CODE';
   return 'CODE';

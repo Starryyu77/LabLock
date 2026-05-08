@@ -1,7 +1,8 @@
 import { afterEach, beforeEach, describe, expect, test } from 'bun:test';
-import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises';
+import { mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import { join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import yaml from 'js-yaml';
 
 const repoRoot = resolve(fileURLToPath(import.meta.url), '../../..');
 const lablock = join(repoRoot, 'bin/lablock.ts');
@@ -74,6 +75,9 @@ describe('LabLock E2E lifecycle', () => {
       '--stage',
     ], cwd);
     await git(cwd, ['commit', '-m', 'create baseline']);
+    const matrix = await readFile(join(cwd, 'experiments/matrix.md'), 'utf8');
+    expect(matrix).toContain('exp-001');
+    expect(matrix).not.toContain('No experiments yet');
     await writeFile(join(cwd, '.lablock/state/current-exp'), 'exp-001\n');
 
     const configPath = join(cwd, 'experiments/exp-001-baseline/config.yaml');
@@ -115,5 +119,47 @@ describe('LabLock E2E lifecycle', () => {
 
     const audit = await run([process.execPath, join(repoRoot, 'bin/lablock-drift-audit.ts'), '--strict', '--json'], cwd);
     expect(audit.stdout).toContain('"unaccounted": []');
+  });
+
+  test('pre-commit runs local probes when project config enables them', async () => {
+    await run([process.execPath, lablock, 'init-project', '--name', 'Probe E2E', '--modules', 'gpu,data,lit', '--ci-mode', 'warn-only'], cwd);
+    await git(cwd, ['add', '.']);
+    await git(cwd, ['commit', '-m', 'init']);
+
+    await run([
+      process.execPath,
+      lablock,
+      'exp-init',
+      'probe-baseline',
+      '--hypothesis',
+      'Local probes are part of the experiment validity boundary.',
+      '--config',
+      'optimizer.lr=0.001',
+      '--control-modified',
+      'probe config',
+      '--stage',
+    ], cwd);
+    await git(cwd, ['commit', '-m', 'create probe baseline']);
+
+    await run([process.execPath, lablock, 'config', 'set', 'drift.layers.probes', 'local'], cwd);
+    const lockPath = join(cwd, '.lablock/locks/exp-001.scope.lock');
+    const lock = yaml.load(await readFile(lockPath, 'utf8')) as any;
+    lock.locked_invariants.probes = [{
+      name: 'always_fails_local',
+      command: 'bun -e "process.exit(3)"',
+      requires: ['cpu'],
+      timeout_sec: 5,
+      run_on: ['local'],
+      reason: 'Regression test proving pre-commit honors drift.layers.probes=local.',
+    }];
+    await writeFile(lockPath, yaml.dump(lock, { lineWidth: 120, noRefs: true, sortKeys: false }));
+    await git(cwd, ['add', '.lablock/config.yaml', '.lablock/locks/exp-001.scope.lock']);
+    await git(cwd, ['commit', '-m', 'enable local probe']);
+
+    await writeFile(join(cwd, '.lablock/state/current-exp'), 'exp-001\n');
+    await writeFile(join(cwd, 'notes.md'), '# Notes\n\nNo scope changes.\n');
+    await git(cwd, ['add', 'notes.md']);
+    const blocked = await git(cwd, ['commit', '-m', 'probe-gated note'], 1);
+    expect(`${blocked.stdout}\n${blocked.stderr}`).toContain('SCOPE-DRIFT detected');
   });
 });

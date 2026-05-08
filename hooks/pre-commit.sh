@@ -35,7 +35,13 @@ SUGGESTED_TAG=$(echo "$CLASSIFY_OUTPUT" | bun -e "console.log(JSON.parse(require
 
 DRIFT_JSON='{"config":[],"files":[]}'
 if [ -n "$CURRENT_EXP" ]; then
-  VERIFY_OUTPUT=$(bun "$LABLOCK_HOME/bin/lablock-verify-scope.ts" --exp="$CURRENT_EXP" --source=staged --json || true)
+  VERIFY_LAYERS="config,files"
+  PROBE_MODE=$(bun "$LABLOCK_HOME/bin/lablock-config.ts" get drift.layers.probes 2>/dev/null | tr -d '"[:space:]' || true)
+  case "$PROBE_MODE" in
+    local|both) VERIFY_LAYERS="config,files,probes" ;;
+  esac
+
+  VERIFY_OUTPUT=$(bun "$LABLOCK_HOME/bin/lablock-verify-scope.ts" --exp="$CURRENT_EXP" --source=staged --layers="$VERIFY_LAYERS" --json || true)
   VERIFY_STATUS=$(echo "$VERIFY_OUTPUT" | bun -e "const x=JSON.parse(require('fs').readFileSync(0,'utf-8')); console.log(x.status || 'error')")
   if [ "$VERIFY_STATUS" = "drifted" ]; then
     SUGGESTED_TAG="SCOPE-DRIFT"

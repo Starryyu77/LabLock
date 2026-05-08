@@ -46,6 +46,7 @@ git -C ~/.lablock/source remote -v
 git -C ~/.lablock/source log -1 --oneline
 bun ~/.lablock/source/bin/lablock-skill-lint.ts
 bun ~/.lablock/source/bin/lablock.ts doctor
+~/.local/bin/lablock doctor
 readlink ~/.claude/skills/lab-init
 readlink ~/.agents/skills/lab-init
 readlink ~/.claude/skills/lab-update
@@ -55,6 +56,7 @@ readlink ~/.agents/skills/lab-update
 - ~/.lablock/source 是从 GitHub clone 的 LabLock 仓库。
 - ~/.claude/skills/lab-* 和 ~/.agents/skills/lab-* 是逐个 skill symlink。
 - lab-init 和 lab-update 都指向 ~/.lablock/source/lab-init / ~/.lablock/source/lab-update。
+- ~/.local/bin/lablock 可以直接运行。
 - lablock-skill-lint 通过。
 - doctor 至少显示 Bun 和 git 可用。
 
@@ -77,6 +79,7 @@ curl -fsSL https://raw.githubusercontent.com/Starryyu77/LabLock/main/install.sh 
 安装后会把 LabLock implementation 放在：
 
 - canonical source: `~/.lablock/source`
+- CLI shim: `~/.local/bin/lablock`
 
 同时会把每个 `lab-*` skill 目录分别 symlink 到 host 的 skill root：
 
@@ -111,6 +114,7 @@ lablock init-project --name="My Project" --modules=gpu,data,lit --ci-mode=warn-o
 
 ```bash
 lablock doctor
+lablock update
 lablock next-exp-id
 lablock exp-init baseline --hypothesis "..." --config optimizer.lr=0.001 --stage
 lablock exp-start --exp=exp-001
@@ -119,7 +123,6 @@ lablock postmortem --exp=exp-001
 lablock cleanup-pr --exp=exp-001 --dry-run
 lablock fork --from exp-001 --shortname model-fork --reason "model invariant changed" --stage
 lablock override --exp=exp-001 --reason="intentional drift"
-lablock update-skills --host=both --scope=global
 lablock github-protection check --branch=main --required-status=lablock-checks --required-reviews=1 --strict --json
 lablock-map
 lablock-verify-scope --exp=exp-001 --source=staged --json
@@ -142,7 +145,7 @@ LabLock skills 分两类：
 |---|---|---|---|
 | `/lab-init` | 新科研仓库第一次接入 LabLock | 初始化目录、配置、hooks、CLAUDE/AGENTS 注入和 CI | `.lablock/`、项目骨架、hooks |
 | `/lab-migrate` | 已有科研仓库想非破坏性接入 LabLock | 先盘点旧脚本/plan/实验/结果，写迁移计划，再经确认用 warn-only 初始化 | `reviews/migration-YYYY-MM-DD.md` 或 `LABLOCK_MIGRATION_PLAN.md` |
-| `/lab-update` | 任意项目里想更新本机安装的 LabLock skills | 从本地 canonical source 刷新 `~/.claude/skills/lab-*` / `~/.agents/skills/lab-*`，默认不拉 GitHub | 更新后的 skill 安装路径、source path、每个 target 的状态 |
+| `/lab-update` | 任意项目里想一键升级本机 LabLock | 运行 `lablock update`：从 GitHub fast-forward 更新 canonical source，重装依赖，刷新 Claude/Codex skills | 更新后的 source、CLI、skill 安装路径 |
 | `/lab-tidy` | 仓库变乱、旧实验太多、分支/文件需要整理 | 找 stale branches、oversized files、expired handoffs、orphan files；默认 dry-run | repo health 清单，可选逐项 apply |
 | `/lab-audit` | 每周检查或想知道项目哪里 stale | 聚合 frontmatter、scope、coverage、orphan、drift、weekly digest | `reviews/audit-YYYY-MM-DD.md` |
 
@@ -225,9 +228,39 @@ LabLock skills 分两类：
 3. `/lab-paper-write`
 4. `/lab-paper-audit`
 
-### 更新本机安装的 LabLock skill
+### 一键更新本机安装的 LabLock
 
-当 LabLock 的 canonical 本地仓库已经更新后，在任意使用 LabLock 的项目里运行：
+当我们在 GitHub 上发布了新的 LabLock 版本，其他用户在本机任意目录运行：
+
+```bash
+lablock update
+```
+
+如果 `~/.local/bin` 还没进 `PATH`，也可以直接运行：
+
+```bash
+~/.local/bin/lablock update
+```
+
+它会按顺序执行：
+
+1. 在 `~/.lablock/source` 执行 `git pull --ff-only`。
+2. 在 `~/.lablock/source` 执行 `bun install`。
+3. 刷新 `~/.claude/skills/lab-*` 和 `~/.agents/skills/lab-*`。
+
+预览但不写入：
+
+```bash
+lablock update --dry-run
+```
+
+只刷新本地 skill 链接、不拉 GitHub、不重装依赖：
+
+```bash
+lablock update --no-pull --no-install --host=both --scope=global
+```
+
+底层刷新命令仍然可用；当 LabLock 的 canonical 本地仓库已经由别的方式更新后，可以运行：
 
 ```bash
 lablock update-skills --host=both --scope=global
@@ -239,7 +272,7 @@ lablock update-skills --host=both --scope=global
 - Claude Code skill symlinks：`~/.claude/skills/lab-*`
 - Codex skill symlinks：`~/.agents/skills/lab-*`
 
-默认 source detection 顺序是 `--source`、`LABLOCK_HOME`、当前目录、`~/.lablock/source`。默认不从 GitHub 拉取；如果你明确想先从 GitHub 更新 canonical source，再加：
+默认 source detection 顺序是 `--source`、`LABLOCK_HOME`、当前目录、`~/.lablock/source`。`update-skills` 默认不从 GitHub 拉取；如果你明确想先从 GitHub 更新 canonical source，再加：
 
 ```bash
 lablock update-skills --pull --host=both --scope=global
@@ -251,7 +284,7 @@ lablock update-skills --pull --host=both --scope=global
 lablock update-skills --host=both --scope=auto
 ```
 
-`/lab-update` 的语义就是这套操作：像软件更新一样复用本地 canonical LabLock source，而不是每个项目都手工 clone / pull GitHub。
+`/lab-update` 的默认语义就是 `lablock update`：像软件更新一样复用本地 canonical LabLock source，而不是每个项目都手工 clone / pull GitHub。
 
 ### 检查 GitHub branch protection
 

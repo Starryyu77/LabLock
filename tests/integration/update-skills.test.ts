@@ -35,6 +35,50 @@ afterEach(async () => {
 });
 
 describe('update-skills', () => {
+  test('update dry-run plans pull install and skill refresh without writing', async () => {
+    const out = await run([
+      process.execPath,
+      lablock,
+      'update',
+      '--source',
+      repoRoot,
+      '--host',
+      'codex',
+      '--scope',
+      'project',
+      '--dry-run',
+      '--json',
+    ], cwd);
+    const payload = JSON.parse(out.stdout);
+    expect(payload.steps.git_pull).toBe('would-run');
+    expect(payload.steps.bun_install).toBe('would-run');
+    expect(payload.skill_update.results.some((r: any) => r.skill === 'lab-update' && r.result === 'would-create:symlink')).toBe(true);
+    await expect(lstat(join(cwd, '.agents/skills/lab-update'))).rejects.toThrow();
+  });
+
+  test('update can refresh skills without pull or install', async () => {
+    const out = await run([
+      process.execPath,
+      lablock,
+      'update',
+      '--source',
+      repoRoot,
+      '--host',
+      'codex',
+      '--scope',
+      'project',
+      '--no-pull',
+      '--no-install',
+      '--json',
+    ], cwd);
+    const payload = JSON.parse(out.stdout);
+    expect(payload.steps.git_pull).toBe('skipped');
+    expect(payload.steps.bun_install).toBe('skipped');
+    const labUpdate = payload.skill_update.results.find((r: any) => r.skill === 'lab-update');
+    expect(labUpdate.result).toBe('symlinked');
+    expect((await lstat(join(cwd, '.agents/skills/lab-update'))).isSymbolicLink()).toBe(true);
+  });
+
   test('creates project-local codex symlinks for individual lab skills', async () => {
     const out = await run([
       process.execPath,

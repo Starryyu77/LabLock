@@ -64,6 +64,20 @@ if [ "$LABLOCK_HOME" != "$CANONICAL_SOURCE" ]; then
   echo "Canonical source: ~/.lablock/source -> $LABLOCK_HOME"
 fi
 
+BIN_DIR="${LABLOCK_BIN_DIR:-$HOME/.local/bin}"
+mkdir -p "$BIN_DIR"
+if [ -d "$BIN_DIR/lablock" ] && [ ! -L "$BIN_DIR/lablock" ]; then
+  echo "Cannot install CLI: $BIN_DIR/lablock is a directory" >&2
+  exit 1
+fi
+rm -f "$BIN_DIR/lablock"
+ln -s "$LABLOCK_HOME/bin/lablock.ts" "$BIN_DIR/lablock"
+echo "CLI: $BIN_DIR/lablock -> $LABLOCK_HOME/bin/lablock.ts"
+case ":$PATH:" in
+  *":$BIN_DIR:"*) ;;
+  *) echo "Warning: $BIN_DIR is not in PATH; add it to run 'lablock' directly." >&2 ;;
+esac
+
 install_skill_links() {
   local target_root="$1"
   local label="$2"

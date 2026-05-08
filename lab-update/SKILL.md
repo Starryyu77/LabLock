@@ -1,7 +1,7 @@
 ---
 name: lab-update
 description: |
-  Update installed LabLock skills from a local canonical source. Use for "update LabLock", "refresh lablock skill", "同步 LabLock 工具", or "自动更新仓库". Updates Claude/Codex skill symlinks or copies; GitHub pull is optional and explicit. User-invoked only.
+  One-command upgrade for installed LabLock. Use for "update LabLock", "upgrade LabLock", "同步 LabLock 工具", or "自动更新仓库". Runs `lablock update` to pull the canonical source, install dependencies, and refresh Claude/Codex skills. User-invoked only.
 disable-model-invocation: true
 related-skills:
   - lab-audit
@@ -34,18 +34,20 @@ Use this skill from any repository where the user wants to refresh LabLock itsel
 
 ## Intent
 
-LabLock should behave like reusable local software. After the canonical LabLock source has been updated once, other projects should be able to invoke `/lab-update` and refresh their installed LabLock skills from that local source. They should not need to manually clone or pull GitHub every time.
+LabLock should behave like reusable local software. After the LabLock GitHub repository is updated, users should be able to invoke `/lab-update` from any project and get the new local LabLock source plus refreshed Claude/Codex skills. They should not need to manually clone or pull GitHub every time.
 
 ## Default Behavior
 
 Run:
 
 ```bash
-lablock update-skills --host=both --scope=global
+lablock update --host=both --scope=global
 ```
 
-This updates:
+This:
 
+- Runs `git pull --ff-only` in the canonical LabLock source.
+- Runs `bun install` in that source.
 - `~/.claude/skills/lab-*`
 - `~/.agents/skills/lab-*`
 
@@ -67,36 +69,37 @@ Abort if no valid LabLock source is found.
 Global update for both hosts:
 
 ```bash
-lablock update-skills --host=both --scope=global
+lablock update --host=both --scope=global
 ```
 
 Update only Codex:
 
 ```bash
-lablock update-skills --host=codex --scope=global
+lablock update --host=codex --scope=global
 ```
 
 Update global install plus any existing project-local vendored skill folders:
 
 ```bash
-lablock update-skills --host=both --scope=auto
+lablock update --host=both --scope=auto
 ```
 
 Preview without writing:
 
 ```bash
-lablock update-skills --host=both --scope=auto --dry-run
+lablock update --host=both --scope=auto --dry-run
 ```
 
-Only when the user explicitly wants to refresh from GitHub first:
+Refresh only skill links without pulling GitHub or reinstalling dependencies:
 
 ```bash
-lablock update-skills --pull --host=both --scope=global
+lablock update --no-pull --no-install --host=both --scope=global
 ```
 
 ## Safety Rules
 
-- Do not run `git pull` unless the user explicitly asks for `--pull` or says they want the latest from GitHub.
+- `/lab-update` means the user wants the latest LabLock release; `lablock update` pulls by default.
+- Use `lablock update --no-pull --no-install` only when the user explicitly wants a local refresh without GitHub.
 - Prefer symlinks for global installs so future LabLock repo updates are reused automatically.
 - If a target is already a directory copy, update it by copying over from the source; do not delete user files manually.
 - Never touch the current project’s source files except `.claude/skills/lab-*` or `.agents/skills/lab-*` when `--scope=project`, `both`, or `auto` is requested.

@@ -966,6 +966,23 @@ async function updateInstalledSkills(opts: {
   dryRun?: boolean;
   json?: boolean;
 }): Promise<void> {
+  const payload = await refreshInstalledSkills(opts);
+  printSkillUpdatePayload(payload, Boolean(opts.json));
+}
+
+async function refreshInstalledSkills(opts: {
+  source?: string;
+  host?: string;
+  scope?: string;
+  mode?: string;
+  pull?: boolean;
+  dryRun?: boolean;
+}): Promise<{
+  source: string;
+  pulled: boolean;
+  mode: 'symlink' | 'copy';
+  results: Array<{ label: string; path: string; skill: string; result: string }>;
+}> {
   const source = await detectLabLockSource(opts.source);
   if (opts.pull) await rawGit(['-C', source, 'pull', '--ff-only']);
   const host = opts.host ?? 'both';
@@ -997,18 +1014,89 @@ async function updateInstalledSkills(opts: {
     }
   }
 
-  const payload = {
+  return {
     source,
     pulled: Boolean(opts.pull),
     mode,
     results,
   };
-  if (opts.json) {
+}
+
+function printSkillUpdatePayload(payload: {
+  source: string;
+  pulled: boolean;
+  mode: 'symlink' | 'copy';
+  results: Array<{ label: string; path: string; skill: string; result: string }>;
+}, json: boolean): void {
+  if (json) {
     console.log(JSON.stringify(payload, null, 2));
   } else {
-    console.log(`LabLock source: ${source}`);
-    for (const item of results) console.log(`${item.label}:${item.skill}: ${item.result} -> ${item.path}`);
+    console.log(`LabLock source: ${payload.source}`);
+    for (const item of payload.results) console.log(`${item.label}:${item.skill}: ${item.result} -> ${item.path}`);
   }
+}
+
+async function runExternal(args: string[], cwd: string): Promise<{ stdout: string; stderr: string }> {
+  const proc = Bun.spawn(args, {
+    cwd,
+    stdout: 'pipe',
+    stderr: 'pipe',
+  });
+  const [stdout, stderr, code] = await Promise.all([
+    new Response(proc.stdout).text(),
+    new Response(proc.stderr).text(),
+    proc.exited,
+  ]);
+  if (code !== 0) throw new Error(`${args.join(' ')} failed (${code})\n${stdout}${stderr}`);
+  return { stdout, stderr };
+}
+
+async function updateLabLock(opts: {
+  source?: string;
+  host?: string;
+  scope?: string;
+  mode?: string;
+  pull?: boolean;
+  install?: boolean;
+  dryRun?: boolean;
+  json?: boolean;
+}): Promise<void> {
+  const source = await detectLabLockSource(opts.source);
+  const shouldPull = opts.pull !== false;
+  const shouldInstall = opts.install !== false;
+  const dryRun = Boolean(opts.dryRun);
+
+  const steps = {
+    git_pull: shouldPull ? (dryRun ? 'would-run' : 'ran') : 'skipped',
+    bun_install: shouldInstall ? (dryRun ? 'would-run' : 'ran') : 'skipped',
+  };
+
+  if (shouldPull && !dryRun) await rawGit(['-C', source, 'pull', '--ff-only']);
+  if (shouldInstall && !dryRun) await runExternal(['bun', 'install'], source);
+
+  const skillUpdate = await refreshInstalledSkills({
+    source,
+    host: opts.host,
+    scope: opts.scope,
+    mode: opts.mode,
+    dryRun,
+  });
+
+  const payload = {
+    source,
+    steps,
+    skill_update: skillUpdate,
+  };
+
+  if (opts.json) {
+    console.log(JSON.stringify(payload, null, 2));
+    return;
+  }
+
+  console.log(`LabLock source: ${source}`);
+  console.log(`git pull --ff-only: ${steps.git_pull}`);
+  console.log(`bun install: ${steps.bun_install}`);
+  for (const item of skillUpdate.results) console.log(`${item.label}:${item.skill}: ${item.result} -> ${item.path}`);
 }
 
 async function doctor(): Promise<void> {
@@ -1060,6 +1148,18 @@ program.command('init-project')
   .option('--goal <text>', 'one-line goal')
   .option('--hypothesis <text>', 'initial hypothesis')
   .action(async (opts) => initProject(opts).catch(fail));
+
+program.command('update')
+  .description('Upgrade the installed LabLock source and refresh installed skills')
+  .option('--source <path>', 'LabLock source repo; defaults to LABLOCK_HOME or detected install')
+  .option('--host <host>', 'claude | codex | both', 'both')
+  .option('--scope <scope>', 'global | project | both | auto', 'global')
+  .option('--mode <mode>', 'symlink | copy', 'symlink')
+  .option('--no-pull', 'skip git pull --ff-only in the source repo')
+  .option('--no-install', 'skip bun install after pulling')
+  .option('--dry-run', 'show what would change')
+  .option('--json', 'json output')
+  .action(async (opts) => updateLabLock(opts).catch(fail));
 
 program.command('update-skills')
   .description('Refresh installed LabLock skills from a local source repo')

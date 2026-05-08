@@ -6,7 +6,7 @@ Use this as the routing table before invoking a LabLock skill.
 
 - New research repository needs LabLock skeleton, hooks, and CI: `/lab-init`
 - Existing research repository needs non-destructive adoption planning: `/lab-migrate`
-- Installed LabLock skills are stale and should be refreshed from local source: `/lab-update`
+- Installed LabLock should be upgraded from GitHub or refreshed locally: `/lab-update`
 - You want a read-only health report: `/lab-audit`
 - You want cleanup candidates and optional apply: `/lab-tidy`
 - You are preparing beta dogfood: follow `docs/dogfood.md`

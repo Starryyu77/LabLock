@@ -18,7 +18,7 @@ LabLock intentionally separates implementation source from host skill discovery.
 
 Git hooks and project templates should call the canonical source through `LABLOCK_HOME` or `~/.lablock/source`. The host skill directories should only contain per-skill symlinks or vendored copies so Claude/Codex can discover each `SKILL.md` directly.
 
-`lab-update` is an official LabLock extension added after the original 22-skill specification. It refreshes those per-skill host installations from a local canonical source. It is not a repository publish command and does not pull GitHub unless explicitly requested.
+`lab-update` is an official LabLock extension added after the original 22-skill specification. It runs `lablock update`, which pulls the canonical source with `git pull --ff-only`, runs `bun install`, and refreshes per-skill host installations. It is not a repository publish command. For offline/local refreshes, use `lablock update --no-pull --no-install` or the lower-level `lablock update-skills`.
 
 ## Commit-Time Flow
 

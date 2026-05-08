@@ -17,6 +17,7 @@ The pasted "LabLock — Developer Implementation Specification" is the current i
 - 2026-05-08: Added scriptable experiment lifecycle automation: `lablock exp-init`, `lablock fork`, and hardened `lablock override` metadata preservation with `LabLock-Override` trailers.
 - 2026-05-08: Added integration tests for init -> exp-init -> drift block -> override -> fork -> drift audit, plus protected branch/tag checks through both `lablock-check-push` and the real `pre-push` hook stdin path.
 - 2026-05-08: Full verification passed: `bun test` (16 pass), `bun run typecheck`, and shell syntax checks for updated hooks.
+- 2026-05-08: Added `lab-update` as the reusable software-update skill for refreshing installed LabLock skill packages from a local canonical LabLock source. It is not a repo-push skill; GitHub pull is optional via explicit `--pull`.
 
 ## Next Checkpoint
 

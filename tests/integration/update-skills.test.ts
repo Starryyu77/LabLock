@@ -1,0 +1,77 @@
+import { afterEach, beforeEach, describe, expect, test } from 'bun:test';
+import { lstat, mkdir, mkdtemp, realpath, rm } from 'node:fs/promises';
+import { join, resolve } from 'node:path';
+import { fileURLToPath } from 'node:url';
+
+const repoRoot = resolve(fileURLToPath(import.meta.url), '../../..');
+const lablock = join(repoRoot, 'bin/lablock.ts');
+const tmpRoot = join(repoRoot, 'tests/.tmp');
+
+async function run(args: string[], cwd: string, expectCode = 0) {
+  const proc = Bun.spawn(args, {
+    cwd,
+    env: { ...process.env, LABLOCK_HOME: repoRoot },
+    stdout: 'pipe',
+    stderr: 'pipe',
+  });
+  const [stdout, stderr, code] = await Promise.all([
+    new Response(proc.stdout).text(),
+    new Response(proc.stderr).text(),
+    proc.exited,
+  ]);
+  if (code !== expectCode) throw new Error(`${args.join(' ')} exited ${code}\n${stdout}\n${stderr}`);
+  return { stdout, stderr, code };
+}
+
+let cwd = '';
+
+beforeEach(async () => {
+  await mkdir(tmpRoot, { recursive: true });
+  cwd = await mkdtemp(join(tmpRoot, 'update-skills-'));
+});
+
+afterEach(async () => {
+  if (cwd) await rm(cwd, { recursive: true, force: true });
+});
+
+describe('update-skills', () => {
+  test('creates a project-local codex symlink from local LabLock source', async () => {
+    const out = await run([
+      process.execPath,
+      lablock,
+      'update-skills',
+      '--source',
+      repoRoot,
+      '--host',
+      'codex',
+      '--scope',
+      'project',
+      '--mode',
+      'symlink',
+      '--json',
+    ], cwd);
+    const payload = JSON.parse(out.stdout);
+    expect(payload.results[0].result).toBe('symlinked');
+    const target = join(cwd, '.agents/skills/lablock');
+    expect((await lstat(target)).isSymbolicLink()).toBe(true);
+    expect(await realpath(target)).toBe(await realpath(repoRoot));
+  });
+
+  test('dry-run reports without writing', async () => {
+    const out = await run([
+      process.execPath,
+      lablock,
+      'update-skills',
+      '--source',
+      repoRoot,
+      '--host',
+      'claude',
+      '--scope',
+      'project',
+      '--dry-run',
+      '--json',
+    ], cwd);
+    const payload = JSON.parse(out.stdout);
+    expect(payload.results[0].result).toBe('would-create:symlink');
+  });
+});

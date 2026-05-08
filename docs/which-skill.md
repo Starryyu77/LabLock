@@ -12,3 +12,4 @@
 - Merge successful work: `/lab-cleanup-pr`
 - Write paper: `/lab-paper-write`
 - Audit paper: `/lab-paper-audit`
+- Refresh the installed LabLock skill package from a local LabLock source: `/lab-update`

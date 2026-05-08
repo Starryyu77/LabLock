@@ -1,7 +1,8 @@
 #!/usr/bin/env bun
 import { Command } from 'commander';
-import { mkdir, readdir, readFile, symlink, copyFile, chmod, writeFile } from 'node:fs/promises';
-import { dirname, join } from 'node:path';
+import { cp, lstat, mkdir, readdir, readFile, readlink, realpath, symlink, unlink, copyFile, chmod, writeFile } from 'node:fs/promises';
+import { homedir } from 'node:os';
+import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import yaml from 'js-yaml';
 import { DEFAULT_PROJECT_CONFIG, type ScopeLock } from '../lib/types.ts';
@@ -372,6 +373,156 @@ async function injectAgentDoc(path: string, template: string): Promise<void> {
   await writeFile(path, next);
 }
 
+async function isSymlink(path: string): Promise<boolean> {
+  try {
+    return (await lstat(path)).isSymbolicLink();
+  } catch (error: any) {
+    if (error?.code === 'ENOENT') return false;
+    throw error;
+  }
+}
+
+async function readPackageName(root: string): Promise<string | null> {
+  try {
+    const pkg = JSON.parse(await readFile(join(root, 'package.json'), 'utf8'));
+    return pkg.name ?? null;
+  } catch {
+    return null;
+  }
+}
+
+async function detectLabLockSource(explicit?: string): Promise<string> {
+  const candidates = [
+    explicit,
+    process.env.LABLOCK_HOME,
+    await readPackageName(process.cwd()).then((name) => name === 'lablock' ? process.cwd() : undefined),
+    join(homedir(), '.agents/skills/lablock'),
+    join(homedir(), '.claude/skills/lablock'),
+  ].filter(Boolean) as string[];
+
+  for (const candidate of candidates) {
+    const resolved = await realpath(candidate).catch(() => resolve(candidate));
+    if (await readPackageName(resolved) === 'lablock') return resolved;
+  }
+  throw new Error('Could not locate a LabLock source. Pass --source=/path/to/LabLock or set LABLOCK_HOME.');
+}
+
+function hostTargets(host: string, scope: string): Array<{ label: string; path: string }> {
+  const hosts = host === 'both' ? ['claude', 'codex'] : [host];
+  const targets: Array<{ label: string; path: string }> = [];
+  for (const h of hosts) {
+    if (scope === 'global' || scope === 'both' || scope === 'auto') {
+      targets.push({
+        label: `${h}:global`,
+        path: h === 'claude' ? join(homedir(), '.claude/skills/lablock') : join(homedir(), '.agents/skills/lablock'),
+      });
+    }
+    if (scope === 'project' || scope === 'both') {
+      targets.push({
+        label: `${h}:project`,
+        path: h === 'claude' ? '.claude/skills/lablock' : '.agents/skills/lablock',
+      });
+    }
+  }
+  return targets;
+}
+
+async function targetExists(path: string): Promise<boolean> {
+  try {
+    await lstat(path);
+    return true;
+  } catch (error: any) {
+    if (error?.code === 'ENOENT') return false;
+    throw error;
+  }
+}
+
+async function copySkillTree(source: string, target: string): Promise<void> {
+  await mkdir(dirname(target), { recursive: true });
+  await cp(source, target, {
+    recursive: true,
+    force: true,
+    dereference: false,
+    filter: (src) => {
+      const rel = src.slice(source.length).replaceAll('\\', '/');
+      return !rel.startsWith('/.git')
+        && !rel.startsWith('/node_modules')
+        && !rel.startsWith('/tests/.tmp');
+    },
+  });
+}
+
+async function updateOneSkillTarget(source: string, target: string, mode: 'symlink' | 'copy', dryRun: boolean): Promise<string> {
+  const sourceReal = await realpath(source);
+  const exists = await targetExists(target);
+  const targetReal = exists ? await realpath(target).catch(() => resolve(target)) : null;
+  if (targetReal === sourceReal) return 'already-current';
+
+  if (dryRun) return exists ? `would-update:${mode}` : `would-create:${mode}`;
+
+  await mkdir(dirname(target), { recursive: true });
+  if (mode === 'symlink') {
+    if (exists && await isSymlink(target)) await unlink(target);
+    if (!await targetExists(target)) {
+      await symlink(sourceReal, target);
+      return 'symlinked';
+    }
+    await copySkillTree(sourceReal, target);
+    return 'copied-existing-directory';
+  }
+
+  await copySkillTree(sourceReal, target);
+  return exists ? 'copied' : 'created-copy';
+}
+
+async function updateInstalledSkills(opts: {
+  source?: string;
+  host?: string;
+  scope?: string;
+  mode?: string;
+  pull?: boolean;
+  dryRun?: boolean;
+  json?: boolean;
+}): Promise<void> {
+  const source = await detectLabLockSource(opts.source);
+  if (opts.pull) await rawGit(['-C', source, 'pull', '--ff-only']);
+  const host = opts.host ?? 'both';
+  const scope = opts.scope ?? 'global';
+  const mode = (opts.mode ?? 'symlink') as 'symlink' | 'copy';
+  if (!['claude', 'codex', 'both'].includes(host)) throw new Error('--host must be claude, codex, or both');
+  if (!['global', 'project', 'both', 'auto'].includes(scope)) throw new Error('--scope must be global, project, both, or auto');
+  if (!['symlink', 'copy'].includes(mode)) throw new Error('--mode must be symlink or copy');
+
+  let targets = hostTargets(host, scope);
+  if (scope === 'auto') {
+    const projectTargets = hostTargets(host, 'project');
+    for (const target of projectTargets) {
+      if (await targetExists(target.path)) targets.push(target);
+    }
+  }
+
+  const results = [];
+  for (const target of targets) {
+    results.push({
+      ...target,
+      result: await updateOneSkillTarget(source, target.path, mode, Boolean(opts.dryRun)),
+    });
+  }
+
+  const payload = {
+    source,
+    pulled: Boolean(opts.pull),
+    mode,
+    results,
+  };
+  if (opts.json) {
+    console.log(JSON.stringify(payload, null, 2));
+  } else {
+    console.log(`LabLock source: ${source}`);
+    for (const item of results) console.log(`${item.label}: ${item.result} -> ${item.path}`);
+  }
+}
+
 async function doctor(): Promise<void> {
   const checks: Array<[string, () => Promise<boolean>]> = [
     ['Bun >= 1.0', async () => {
@@ -421,6 +572,17 @@ program.command('init-project')
   .option('--goal <text>', 'one-line goal')
   .option('--hypothesis <text>', 'initial hypothesis')
   .action(async (opts) => initProject(opts).catch(fail));
+
+program.command('update-skills')
+  .description('Refresh installed LabLock skills from a local source repo')
+  .option('--source <path>', 'LabLock source repo; defaults to LABLOCK_HOME or detected install')
+  .option('--host <host>', 'claude | codex | both', 'both')
+  .option('--scope <scope>', 'global | project | both | auto', 'global')
+  .option('--mode <mode>', 'symlink | copy', 'symlink')
+  .option('--pull', 'run git pull --ff-only in the source before updating')
+  .option('--dry-run', 'show what would change')
+  .option('--json', 'json output')
+  .action(async (opts) => updateInstalledSkills(opts).catch(fail));
 
 program.command('exp-init')
   .argument('<shortname>')

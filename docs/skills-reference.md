@@ -18,6 +18,7 @@ LabLock skills 分两类：
 
 | 目标 | 应使用 |
 |---|---|
+| 不知道该用哪个 LabLock skill | `/lab-advice` |
 | 新科研仓库接入 LabLock | `/lab-init` |
 | 已有科研仓库非破坏性接入 | `/lab-migrate` |
 | 更新本机安装的 LabLock | `/lab-update` |
@@ -44,6 +45,42 @@ LabLock skills 分两类：
 | 项目健康检查/weekly audit | `/lab-audit` |
 
 ## 项目与安装
+
+### `/lab-advice`
+
+**作用**：当用户不知道应该使用哪个 LabLock skill 时，做只读路由建议。
+
+**何时使用**：
+
+- 用户问“我该用哪个 skill？”。
+- 当前任务描述比较模糊，不确定是 init、migrate、plan、debug、audit 还是 paper。
+- 你怀疑没有合适的 LabLock skill，需要一个明确的 no-match 判断。
+
+**不要何时使用**：
+
+- 已经明确知道目标 skill，例如用户直接说 `/lab-exp-init`。
+- 需要直接执行有副作用的动作。`/lab-advice` 只推荐，不初始化、不提交、不改文件。
+- 普通 coding、天气、新闻、通用文档编辑等明显不属于 LabLock workflow 的任务。
+
+**会做什么**：
+
+- 读取用户最新请求。
+- 必要时轻量检查 `.lablock/config.yaml`、`PROJECT.md`、`git status`。
+- 给出一个最合适的 `/lab-*` skill。
+- 如果请求含混，列出 2-3 个候选 skill 并问一个澄清问题。
+- 如果不属于 LabLock 范围，返回“没有合适的 LabLock skill”。
+
+**主要输出**：
+
+- 推荐 skill。
+- confidence。
+- 推荐理由。
+- 可复制的下一步 prompt。
+
+**下一步**：
+
+- 用户确认后调用推荐的 skill。
+- 如果 no match，走普通 AI/CLI 工作流，而不是强行套 LabLock。
 
 ### `/lab-init`
 

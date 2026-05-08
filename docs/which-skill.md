@@ -6,6 +6,7 @@ For the full explanation of every skill, see `docs/skills-reference.md`.
 
 ## Project Setup
 
+- Unsure which LabLock skill fits the request: `/lab-advice`
 - New research repository needs LabLock skeleton, hooks, and CI: `/lab-init`
 - Existing research repository needs non-destructive adoption planning: `/lab-migrate`
 - Installed LabLock should be upgraded from GitHub or refreshed locally: `/lab-update`

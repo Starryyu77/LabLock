@@ -22,7 +22,10 @@ The pasted "LabLock — Developer Implementation Specification" is the current i
 - 2026-05-08: Verification passed after alpha hardening: `bun run typecheck`, `bun test` (19 pass), hook `bash -n` checks, focused integration tests for update-skills/e2e/branch-protection/lifecycle CLI, and a temp-HOME `./setup --host=codex --no-prompts` install smoke test.
 - 2026-05-08: Continued GitHub hardening: added `lablock github-protection check|apply` so remote branch protection can be inspected/applied deterministically and GitHub API 403 responses are reported as `unavailable` instead of being mistaken for success.
 - 2026-05-08: Live verification for `Starryyu77/LabLock` ran through `lablock github-protection check --repo Starryyu77/LabLock --branch main --json`; GitHub returned API 403 and LabLock reported `status: unavailable` as intended. Full verification passed with `bun run typecheck`, `bun test` (20 pass), and hook syntax checks.
+- 2026-05-08: Upgraded GitHub protection from read/apply to policy verification: `check` now reports `compliance`, `missing`, and `dangerous`; `--strict` exits nonzero on unavailable/skipped/noncompliant states; `apply` requires `--required-status` unless explicitly overridden, supports `--dry-run`, and defaults to merge-existing rather than replacement.
+- 2026-05-08: `github-protection apply --dry-run` merge mode now preserves existing status contexts and stricter PR review settings while adding LabLock-required contexts/review minimums.
+- 2026-05-08: Live GitHub checks after policy upgrade behaved as intended: `check --strict` for `Starryyu77/LabLock/main` exited 1 with `status: unavailable` on GitHub API 403, and `apply --replace --dry-run` printed the planned branch protection payload without writing settings.
 
 ## Next Checkpoint
 
-Next hardening target: richer probe templates and more complete claim/paper audit parsing.
+Next hardening target: GitHub rulesets for pattern branches, richer probe templates, and more complete claim/paper audit parsing.

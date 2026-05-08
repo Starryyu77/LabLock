@@ -75,7 +75,7 @@ lablock cleanup-pr --exp=exp-001 --dry-run
 lablock fork --from exp-001 --shortname model-fork --reason "model invariant changed" --stage
 lablock override --exp=exp-001 --reason="intentional drift"
 lablock update-skills --host=both --scope=global
-lablock github-protection check --branch=main --json
+lablock github-protection check --branch=main --required-status=lablock-checks --required-reviews=1 --strict --json
 lablock-map
 lablock-verify-scope --exp=exp-001 --source=staged --json
 lablock-frontmatter-check --strict
@@ -203,14 +203,24 @@ lablock update-skills --host=both --scope=auto
 本地 hook 会阻止 protected branch/tag 的危险 push；GitHub 远端保护可以用 CLI 检查：
 
 ```bash
-lablock github-protection check --branch=main --json
+lablock github-protection check --branch=main --required-status=lablock-checks --required-reviews=1 --strict --json
 ```
 
-如果权限允许，可以显式 apply：
+输出会包含 `compliance`、`missing`、`dangerous`。`--strict` 下，只要 GitHub protection 不可访问、不存在、跳过 pattern branch，或保护规则不符合 LabLock policy，命令就会退出 1。
+
+如果权限允许，可以先 dry-run：
+
+```bash
+lablock github-protection apply --branch=main --required-status=lablock-checks --required-reviews=1 --dry-run --json
+```
+
+确认 planned payload 后再显式 apply：
 
 ```bash
 lablock github-protection apply --branch=main --required-status=lablock-checks --required-reviews=1
 ```
+
+`apply` 必须传 `--required-status`，除非显式写 `--allow-no-required-status`。默认是 `merge-existing`，会尽量保留已有 GitHub protection 的已知设置；如果你要用 LabLock 最小策略替换现有配置，必须显式加 `--replace`。
 
 私有仓库在免费账号下可能会返回 GitHub API `403`；LabLock 会把这种状态报告成 `unavailable`，而不是误判为已保护。
 

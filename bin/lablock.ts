@@ -16,7 +16,7 @@ import { writeMeta } from '../lib/meta.ts';
 import { CommitMetaSchema } from '../lib/types.ts';
 import { fileHash, readLock, verifyConfigLayer, verifyFilesLayer, writeLock } from '../lib/lock.ts';
 import { readFrontmatter, writeFrontmatter } from '../lib/frontmatter.ts';
-import { GitHubApiError, currentRepo, getBranchProtection, isAuthenticated, isGhAvailable, setBranchProtection } from '../lib/gh.ts';
+import { GitHubApiError, branchProtectionPayload, currentRepo, getBranchProtection, isAuthenticated, isGhAvailable, putBranchProtection } from '../lib/gh.ts';
 import { fail, parseScalar } from './_util.ts';
 import { pathExists } from '../lib/fs-util.ts';
 
@@ -384,16 +384,167 @@ function hasGlobSyntax(branch: string): boolean {
   return /[*?\[\]{}]/.test(branch);
 }
 
+function boolFromProtection(value: any): boolean {
+  if (typeof value === 'boolean') return value;
+  return Boolean(value?.enabled);
+}
+
+function statusContexts(protection: any): string[] {
+  const status = protection?.required_status_checks;
+  const contexts = Array.isArray(status?.contexts) ? status.contexts : [];
+  const checks = Array.isArray(status?.checks)
+    ? status.checks.map((check: any) => check.context ?? check.name).filter(Boolean)
+    : [];
+  return [...new Set([...contexts, ...checks])];
+}
+
+function normalizeExistingStatusChecks(status: any): unknown {
+  if (!status) return null;
+  return {
+    strict: Boolean(status.strict),
+    contexts: statusContexts({ required_status_checks: status }),
+  };
+}
+
+function normalizeExistingReviews(reviews: any): unknown {
+  if (!reviews) return null;
+  const out: Record<string, unknown> = {};
+  for (const key of [
+    'dismiss_stale_reviews',
+    'require_code_owner_reviews',
+    'required_approving_review_count',
+    'require_last_push_approval',
+  ]) {
+    if (reviews[key] !== undefined) out[key] = reviews[key];
+  }
+  return Object.keys(out).length ? out : null;
+}
+
+function normalizeExistingRestrictions(restrictions: any): unknown {
+  if (!restrictions) return null;
+  const names = (items: any[]) => items.map((item) => item.slug ?? item.login ?? item.name).filter(Boolean);
+  return {
+    users: Array.isArray(restrictions.users) ? names(restrictions.users) : [],
+    teams: Array.isArray(restrictions.teams) ? names(restrictions.teams) : [],
+    apps: Array.isArray(restrictions.apps) ? names(restrictions.apps) : [],
+  };
+}
+
+function existingProtectionPayload(protection: any): Record<string, unknown> {
+  if (!protection) return {};
+  const payload: Record<string, unknown> = {
+    required_status_checks: normalizeExistingStatusChecks(protection.required_status_checks),
+    enforce_admins: boolFromProtection(protection.enforce_admins),
+    required_pull_request_reviews: normalizeExistingReviews(protection.required_pull_request_reviews),
+    restrictions: normalizeExistingRestrictions(protection.restrictions),
+    allow_force_pushes: boolFromProtection(protection.allow_force_pushes),
+    allow_deletions: boolFromProtection(protection.allow_deletions),
+  };
+  for (const key of [
+    'required_linear_history',
+    'required_conversation_resolution',
+    'block_creations',
+    'lock_branch',
+    'allow_fork_syncing',
+  ]) {
+    if (protection[key] !== undefined) payload[key] = boolFromProtection(protection[key]);
+  }
+  if (protection.required_deployments?.required_deployment_environments) {
+    payload.required_deployments = {
+      required_deployment_environments: protection.required_deployments.required_deployment_environments,
+    };
+  }
+  return payload;
+}
+
+function mergeBranchProtectionPayload(existing: unknown, desired: Record<string, unknown>): Record<string, unknown> {
+  const base = existingProtectionPayload(existing);
+  const merged = { ...base, ...desired };
+  const baseStatus = base.required_status_checks as any;
+  const desiredStatus = desired.required_status_checks as any;
+  if (baseStatus && desiredStatus) {
+    merged.required_status_checks = {
+      strict: Boolean(desiredStatus.strict ?? baseStatus.strict),
+      contexts: [...new Set([...(baseStatus.contexts ?? []), ...(desiredStatus.contexts ?? [])])],
+    };
+  }
+  const baseReviews = base.required_pull_request_reviews as any;
+  const desiredReviews = desired.required_pull_request_reviews as any;
+  if (baseReviews && desiredReviews) {
+    merged.required_pull_request_reviews = {
+      ...baseReviews,
+      ...desiredReviews,
+      required_approving_review_count: Math.max(
+        Number(baseReviews.required_approving_review_count ?? 0),
+        Number(desiredReviews.required_approving_review_count ?? 0),
+      ),
+    };
+  }
+  return merged;
+}
+
+function evaluateBranchProtection(
+  protection: unknown,
+  policy: {
+    required_status_checks: string[];
+    required_reviews: number | null;
+    enforce_admins: boolean;
+    allow_force_pushes: boolean;
+    allow_deletions: boolean;
+  },
+): { compliance: 'passed' | 'failed'; missing: string[]; dangerous: string[] } {
+  const p = protection as any;
+  const contexts = statusContexts(p);
+  const missing = [];
+  const dangerous = [];
+  for (const context of policy.required_status_checks) {
+    if (!contexts.includes(context)) missing.push(`required_status_checks:${context}`);
+  }
+  if (policy.required_reviews !== null) {
+    const actual = Number(p?.required_pull_request_reviews?.required_approving_review_count ?? 0);
+    if (actual < policy.required_reviews) missing.push(`required_pull_request_reviews>=${policy.required_reviews}`);
+  }
+  if (policy.enforce_admins && !boolFromProtection(p?.enforce_admins)) missing.push('enforce_admins=true');
+  if (policy.allow_force_pushes === false && boolFromProtection(p?.allow_force_pushes)) dangerous.push('allow_force_pushes=true');
+  if (policy.allow_deletions === false && boolFromProtection(p?.allow_deletions)) dangerous.push('allow_deletions=true');
+  return {
+    compliance: missing.length || dangerous.length ? 'failed' : 'passed',
+    missing,
+    dangerous,
+  };
+}
+
+function strictProtectionFailure(item: any): boolean {
+  return item.status !== 'protected' && item.status !== 'applied'
+    || item.compliance === 'failed'
+    || item.status === 'skipped-pattern'
+    || item.status === 'unavailable'
+    || item.status === 'unprotected-or-inaccessible'
+    || item.status === 'would-apply';
+}
+
 async function githubProtection(opts: {
   action?: string;
   branch?: string;
   repo?: string;
   requiredStatus?: string;
   requiredReviews?: string;
+  strict?: boolean;
+  dryRun?: boolean;
+  replace?: boolean;
+  allowNoRequiredStatus?: boolean;
   json?: boolean;
 }): Promise<void> {
   const action = opts.action ?? 'check';
   if (!['check', 'apply'].includes(action)) throw new Error('action must be check or apply');
+  const requiredStatus = parseCsv(opts.requiredStatus);
+  if (action === 'apply' && requiredStatus.length === 0 && !opts.allowNoRequiredStatus) {
+    throw new Error('github-protection apply requires --required-status=<context> or explicit --allow-no-required-status.');
+  }
+  const requiredReviewCount = opts.requiredReviews ? Number(opts.requiredReviews) : null;
+  if (requiredReviewCount !== null && (!Number.isInteger(requiredReviewCount) || requiredReviewCount < 0)) {
+    throw new Error('--required-reviews must be a nonnegative integer');
+  }
   if (!await isGhAvailable()) throw new Error('gh CLI is not installed.');
   if (!await isAuthenticated()) throw new Error('gh CLI is not authenticated.');
 
@@ -401,21 +552,25 @@ async function githubProtection(opts: {
   const repo = opts.repo ?? await currentRepo();
   const configuredBranches = opts.branch ? parseCsv(opts.branch) : config.git.protected_branches;
   const branches = configuredBranches.length ? configuredBranches : ['main'];
+  const policy = {
+    required_status_checks: requiredStatus,
+    required_reviews: requiredReviewCount,
+    enforce_admins: true,
+    allow_force_pushes: false,
+    allow_deletions: false,
+  };
   const rules = {
     required_status_checks: parseCsv(opts.requiredStatus),
     enforce_admins: true,
-    required_pull_request_reviews: opts.requiredReviews
-      ? { required_approving_review_count: Number(opts.requiredReviews) }
+    required_pull_request_reviews: requiredReviewCount !== null
+      ? { required_approving_review_count: requiredReviewCount }
       : undefined,
     restrictions: null,
     allow_force_pushes: false,
     allow_deletions: false,
   };
-  if (rules.required_pull_request_reviews && !Number.isInteger(rules.required_pull_request_reviews.required_approving_review_count)) {
-    throw new Error('--required-reviews must be an integer');
-  }
 
-  const results = [];
+  const results: any[] = [];
   for (const branch of branches) {
     if (hasGlobSyntax(branch)) {
       results.push({
@@ -426,12 +581,47 @@ async function githubProtection(opts: {
       continue;
     }
     try {
-      if (action === 'apply') await setBranchProtection(branch, {
+      const existing = action === 'apply' && opts.replace && opts.dryRun
+        ? null
+        : await getBranchProtection(branch, repo).catch((error) => {
+          if (action === 'apply' && error instanceof GitHubApiError && error.status === 404) return null;
+          throw error;
+        });
+      const desiredPayload = branchProtectionPayload({
         ...rules,
         required_status_checks: rules.required_status_checks.length ? rules.required_status_checks : undefined,
-      }, repo);
-      const protection = await getBranchProtection(branch, repo);
-      results.push({ branch, status: action === 'apply' ? 'applied' : 'protected', protection });
+      });
+      if (!opts.replace && existing) {
+        if (rules.required_status_checks.length === 0) delete desiredPayload.required_status_checks;
+        if (!rules.required_pull_request_reviews) delete desiredPayload.required_pull_request_reviews;
+        delete desiredPayload.restrictions;
+      }
+      if (action === 'apply') {
+        const payload = opts.replace ? desiredPayload : mergeBranchProtectionPayload(existing, desiredPayload);
+        if (opts.dryRun) {
+          results.push({
+            branch,
+            status: 'would-apply',
+            compliance: 'unchecked',
+            mode: opts.replace ? 'replace' : 'merge-existing',
+            planned_payload: payload,
+          });
+          continue;
+        }
+        await putBranchProtection(branch, payload, repo);
+      }
+      const protection = action === 'apply' && opts.dryRun ? existing : await getBranchProtection(branch, repo);
+      const compliance = protection ? evaluateBranchProtection(protection, policy) : {
+        compliance: 'failed',
+        missing: ['branch_protection'],
+        dangerous: [],
+      };
+      results.push({
+        branch,
+        status: action === 'apply' ? 'applied' : 'protected',
+        ...compliance,
+        protection,
+      });
     } catch (error) {
       if (error instanceof GitHubApiError) {
         const unavailable = error.status === 403;
@@ -454,10 +644,14 @@ async function githubProtection(opts: {
   else {
     console.log(`GitHub repository: ${repo}`);
     for (const item of results) {
-      console.log(`${item.branch}: ${item.status}${item.api_status ? ` (HTTP ${item.api_status})` : ''}`);
+      const compliance = item.compliance ? ` compliance=${item.compliance}` : '';
+      console.log(`${item.branch}: ${item.status}${compliance}${item.api_status ? ` (HTTP ${item.api_status})` : ''}`);
       if (item.message) console.log(`  ${item.message}`);
+      if (item.missing?.length) console.log(`  missing: ${item.missing.join(', ')}`);
+      if (item.dangerous?.length) console.log(`  dangerous: ${item.dangerous.join(', ')}`);
     }
   }
+  if (opts.strict && results.some((item) => strictProtectionFailure(item))) process.exitCode = 1;
 }
 
 async function installHooks(): Promise<void> {
@@ -862,6 +1056,10 @@ program.command('github-protection')
   .option('--repo <owner/name>', 'GitHub repository; defaults to current gh repo')
   .option('--required-status <csv>', 'status check contexts to require when applying protection')
   .option('--required-reviews <n>', 'required approving reviews when applying protection')
+  .option('--strict', 'exit nonzero when protection is unavailable or noncompliant')
+  .option('--dry-run', 'for apply: print planned payload without writing')
+  .option('--replace', 'for apply: replace with the LabLock minimum policy instead of merging existing settings')
+  .option('--allow-no-required-status', 'for apply: allow branch protection without required status checks')
   .option('--json', 'json output')
   .action(async (action, opts) => githubProtection({ action, ...opts }).catch(fail));
 

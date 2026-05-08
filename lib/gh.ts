@@ -151,9 +151,18 @@ export async function setBranchProtection(
   repo?: string,
 ): Promise<void> {
   const nameWithOwner = repo ?? await currentRepo();
+  await putBranchProtection(branch, branchProtectionPayload(rules), nameWithOwner);
+}
+
+export async function putBranchProtection(
+  branch: string,
+  payload: Record<string, unknown>,
+  repo?: string,
+): Promise<void> {
+  const nameWithOwner = repo ?? await currentRepo();
   await ghWithInput(
     ['api', '--method', 'PUT', `repos/${nameWithOwner}/branches/${branch}/protection`, '--input', '-'],
-    JSON.stringify(branchProtectionPayload(rules)),
+    JSON.stringify(payload),
   );
 }
 

@@ -75,6 +75,7 @@ lablock cleanup-pr --exp=exp-001 --dry-run
 lablock fork --from exp-001 --shortname model-fork --reason "model invariant changed" --stage
 lablock override --exp=exp-001 --reason="intentional drift"
 lablock update-skills --host=both --scope=global
+lablock github-protection check --branch=main --json
 lablock-map
 lablock-verify-scope --exp=exp-001 --source=staged --json
 lablock-frontmatter-check --strict
@@ -196,6 +197,22 @@ lablock update-skills --host=both --scope=auto
 ```
 
 `/lab-update` 的语义就是这套操作：像软件更新一样复用本地 canonical LabLock source，而不是每个项目都手工 clone / pull GitHub。
+
+### 检查 GitHub branch protection
+
+本地 hook 会阻止 protected branch/tag 的危险 push；GitHub 远端保护可以用 CLI 检查：
+
+```bash
+lablock github-protection check --branch=main --json
+```
+
+如果权限允许，可以显式 apply：
+
+```bash
+lablock github-protection apply --branch=main --required-status=lablock-checks --required-reviews=1
+```
+
+私有仓库在免费账号下可能会返回 GitHub API `403`；LabLock 会把这种状态报告成 `unavailable`，而不是误判为已保护。
 
 ## 核心数据结构
 

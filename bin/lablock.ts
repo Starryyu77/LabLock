@@ -16,6 +16,7 @@ import { writeMeta } from '../lib/meta.ts';
 import { CommitMetaSchema } from '../lib/types.ts';
 import { fileHash, readLock, verifyConfigLayer, verifyFilesLayer, writeLock } from '../lib/lock.ts';
 import { readFrontmatter, writeFrontmatter } from '../lib/frontmatter.ts';
+import { GitHubApiError, currentRepo, getBranchProtection, isAuthenticated, isGhAvailable, setBranchProtection } from '../lib/gh.ts';
 import { fail, parseScalar } from './_util.ts';
 import { pathExists } from '../lib/fs-util.ts';
 
@@ -376,6 +377,86 @@ async function cleanupPr(opts: { exp: string; base?: string; json?: boolean }): 
   else {
     console.log(`Cleanup PR dry-run for ${opts.exp}: ${branch} -> ${base}`);
     for (const f of files) console.log(`${f.action}\t${f.status}\t${f.path}`);
+  }
+}
+
+function hasGlobSyntax(branch: string): boolean {
+  return /[*?\[\]{}]/.test(branch);
+}
+
+async function githubProtection(opts: {
+  action?: string;
+  branch?: string;
+  repo?: string;
+  requiredStatus?: string;
+  requiredReviews?: string;
+  json?: boolean;
+}): Promise<void> {
+  const action = opts.action ?? 'check';
+  if (!['check', 'apply'].includes(action)) throw new Error('action must be check or apply');
+  if (!await isGhAvailable()) throw new Error('gh CLI is not installed.');
+  if (!await isAuthenticated()) throw new Error('gh CLI is not authenticated.');
+
+  const config = await readProjectConfig().catch(() => DEFAULT_PROJECT_CONFIG);
+  const repo = opts.repo ?? await currentRepo();
+  const configuredBranches = opts.branch ? parseCsv(opts.branch) : config.git.protected_branches;
+  const branches = configuredBranches.length ? configuredBranches : ['main'];
+  const rules = {
+    required_status_checks: parseCsv(opts.requiredStatus),
+    enforce_admins: true,
+    required_pull_request_reviews: opts.requiredReviews
+      ? { required_approving_review_count: Number(opts.requiredReviews) }
+      : undefined,
+    restrictions: null,
+    allow_force_pushes: false,
+    allow_deletions: false,
+  };
+  if (rules.required_pull_request_reviews && !Number.isInteger(rules.required_pull_request_reviews.required_approving_review_count)) {
+    throw new Error('--required-reviews must be an integer');
+  }
+
+  const results = [];
+  for (const branch of branches) {
+    if (hasGlobSyntax(branch)) {
+      results.push({
+        branch,
+        status: 'skipped-pattern',
+        message: 'Classic branch protection applies to concrete branch names; use GitHub rulesets for patterns.',
+      });
+      continue;
+    }
+    try {
+      if (action === 'apply') await setBranchProtection(branch, {
+        ...rules,
+        required_status_checks: rules.required_status_checks.length ? rules.required_status_checks : undefined,
+      }, repo);
+      const protection = await getBranchProtection(branch, repo);
+      results.push({ branch, status: action === 'apply' ? 'applied' : 'protected', protection });
+    } catch (error) {
+      if (error instanceof GitHubApiError) {
+        const unavailable = error.status === 403;
+        results.push({
+          branch,
+          status: unavailable ? 'unavailable' : 'unprotected-or-inaccessible',
+          api_status: error.status,
+          message: unavailable
+            ? 'GitHub refused branch protection access. For private repos this may require GitHub Pro, an organization plan, or admin permission.'
+            : error.message,
+        });
+      } else {
+        throw error;
+      }
+    }
+  }
+
+  const payload = { repo, action, results };
+  if (opts.json) console.log(JSON.stringify(payload, null, 2));
+  else {
+    console.log(`GitHub repository: ${repo}`);
+    for (const item of results) {
+      console.log(`${item.branch}: ${item.status}${item.api_status ? ` (HTTP ${item.api_status})` : ''}`);
+      if (item.message) console.log(`  ${item.message}`);
+    }
   }
 }
 
@@ -773,6 +854,16 @@ program.command('cleanup-pr')
   .option('--dry-run', 'only print planned file classification', true)
   .option('--json', 'json output')
   .action(async (opts) => cleanupPr(opts).catch(fail));
+
+program.command('github-protection')
+  .description('Check or apply GitHub branch protection for LabLock protected branches')
+  .argument('[action]', 'check | apply', 'check')
+  .option('--branch <csv>', 'branch names to check/apply; defaults to config git.protected_branches')
+  .option('--repo <owner/name>', 'GitHub repository; defaults to current gh repo')
+  .option('--required-status <csv>', 'status check contexts to require when applying protection')
+  .option('--required-reviews <n>', 'required approving reviews when applying protection')
+  .option('--json', 'json output')
+  .action(async (action, opts) => githubProtection({ action, ...opts }).catch(fail));
 
 program.command('override')
   .requiredOption('--exp <id>')

@@ -20,7 +20,9 @@ The pasted "LabLock — Developer Implementation Specification" is the current i
 - 2026-05-08: Added `lab-update` as the reusable software-update skill for refreshing installed LabLock skill packages from a local canonical LabLock source. It is not a repo-push skill; GitHub pull is optional via explicit `--pull`.
 - 2026-05-08: Hardened alpha readiness gaps from repo review: per-skill host installation under `~/.claude/skills/lab-*` and `~/.agents/skills/lab-*`, canonical implementation at `~/.lablock/source`, portable CI that clones LabLock before running checks, stricter drift accountability binding `exp_id` + `change_id` + decision type, deterministic lifecycle CLI (`exp-start`, `exp-finalize`, `postmortem`, `cleanup-pr --dry-run`), and `apply_patch` PreToolUse coverage.
 - 2026-05-08: Verification passed after alpha hardening: `bun run typecheck`, `bun test` (19 pass), hook `bash -n` checks, focused integration tests for update-skills/e2e/branch-protection/lifecycle CLI, and a temp-HOME `./setup --host=codex --no-prompts` install smoke test.
+- 2026-05-08: Continued GitHub hardening: added `lablock github-protection check|apply` so remote branch protection can be inspected/applied deterministically and GitHub API 403 responses are reported as `unavailable` instead of being mistaken for success.
+- 2026-05-08: Live verification for `Starryyu77/LabLock` ran through `lablock github-protection check --repo Starryyu77/LabLock --branch main --json`; GitHub returned API 403 and LabLock reported `status: unavailable` as intended. Full verification passed with `bun run typecheck`, `bun test` (20 pass), and hook syntax checks.
 
 ## Next Checkpoint
 
-Next hardening target: optional live GitHub API branch-protection application/inspection after explicit permission, richer probe templates, and more complete claim/paper audit parsing.
+Next hardening target: richer probe templates and more complete claim/paper audit parsing.

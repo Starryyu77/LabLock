@@ -1,5 +1,31 @@
 import { spawn } from 'node:child_process';
 
+export class GitHubApiError extends Error {
+  status: number | null;
+  body: unknown;
+
+  constructor(message: string, status: number | null = null, body: unknown = null) {
+    super(message);
+    this.name = 'GitHubApiError';
+    this.status = status;
+    this.body = body;
+  }
+}
+
+function parseGhError(stderr: string, fallback: string): Error {
+  const jsonLine = stderr.split('\n').map((line) => line.trim()).find((line) => line.startsWith('{') && line.endsWith('}'));
+  if (jsonLine) {
+    try {
+      const body = JSON.parse(jsonLine);
+      return new GitHubApiError(body.message ?? fallback, Number(body.status) || null, body);
+    } catch {
+      // Fall through to plain error.
+    }
+  }
+  const status = stderr.match(/\bHTTP\s+(\d{3})\b/)?.[1];
+  return new GitHubApiError(stderr.trim() || fallback, status ? Number(status) : null, null);
+}
+
 async function gh(args: string[]): Promise<string> {
   return new Promise((resolve, reject) => {
     const child = spawn('gh', args, { stdio: ['ignore', 'pipe', 'pipe'] });
@@ -11,7 +37,7 @@ async function gh(args: string[]): Promise<string> {
     child.on('close', (code) => {
       const out = Buffer.concat(stdout).toString('utf8');
       if (code === 0) resolve(out);
-      else reject(new Error(Buffer.concat(stderr).toString('utf8') || `gh exited ${code}`));
+      else reject(parseGhError(Buffer.concat(stderr).toString('utf8'), `gh exited ${code}`));
     });
   });
 }
@@ -28,7 +54,7 @@ async function ghWithInput(args: string[], input: string): Promise<string> {
     child.on('close', (code) => {
       const out = Buffer.concat(stdout).toString('utf8');
       if (code === 0) resolve(out);
-      else reject(new Error(Buffer.concat(stderr).toString('utf8') || `gh exited ${code}`));
+      else reject(parseGhError(Buffer.concat(stderr).toString('utf8'), `gh exited ${code}`));
     });
   });
 }
@@ -82,6 +108,36 @@ export async function createPR(options: {
   return parseUrlAndNumber(await gh(args));
 }
 
+export async function currentRepo(): Promise<string> {
+  const repo = (await gh(['repo', 'view', '--json', 'nameWithOwner'])).trim();
+  return JSON.parse(repo).nameWithOwner;
+}
+
+export function branchProtectionPayload(rules: {
+  required_status_checks?: string[];
+  enforce_admins?: boolean;
+  required_pull_request_reviews?: { required_approving_review_count: number };
+  restrictions?: null;
+  allow_force_pushes?: boolean;
+  allow_deletions?: boolean;
+}): Record<string, unknown> {
+  return {
+    required_status_checks: rules.required_status_checks
+      ? { strict: true, contexts: rules.required_status_checks }
+      : null,
+    enforce_admins: Boolean(rules.enforce_admins),
+    required_pull_request_reviews: rules.required_pull_request_reviews ?? null,
+    restrictions: rules.restrictions ?? null,
+    allow_force_pushes: Boolean(rules.allow_force_pushes),
+    allow_deletions: Boolean(rules.allow_deletions),
+  };
+}
+
+export async function getBranchProtection(branch: string, repo?: string): Promise<unknown> {
+  const nameWithOwner = repo ?? await currentRepo();
+  return JSON.parse(await gh(['api', `repos/${nameWithOwner}/branches/${branch}/protection`]));
+}
+
 export async function setBranchProtection(
   branch: string,
   rules: {
@@ -92,21 +148,12 @@ export async function setBranchProtection(
     allow_force_pushes?: boolean;
     allow_deletions?: boolean;
   },
+  repo?: string,
 ): Promise<void> {
-  const repo = (await gh(['repo', 'view', '--json', 'nameWithOwner'])).trim();
-  const nameWithOwner = JSON.parse(repo).nameWithOwner;
+  const nameWithOwner = repo ?? await currentRepo();
   await ghWithInput(
     ['api', '--method', 'PUT', `repos/${nameWithOwner}/branches/${branch}/protection`, '--input', '-'],
-    JSON.stringify({
-      required_status_checks: rules.required_status_checks
-        ? { strict: true, contexts: rules.required_status_checks }
-        : null,
-      enforce_admins: Boolean(rules.enforce_admins),
-      required_pull_request_reviews: rules.required_pull_request_reviews ?? null,
-      restrictions: rules.restrictions ?? null,
-      allow_force_pushes: Boolean(rules.allow_force_pushes),
-      allow_deletions: Boolean(rules.allow_deletions),
-    }),
+    JSON.stringify(branchProtectionPayload(rules)),
   );
 }
 

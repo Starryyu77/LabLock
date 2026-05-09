@@ -39,7 +39,7 @@ Advisory skills:
 - Commit messages: `[exp-NNN][TAG] message`
 - Experiment IDs: `exp-NNN`
 - Primary experiment isolation is folder-based: keep each experiment's plan, config, notes, results, run scripts, and local artifacts under `experiments/<exp-NNN>-<shortname>/`.
-- Use Git branches/worktrees only for explicit collaboration, cleanup PRs, paper branches, release work, or other cases where history isolation is required. Do not make a new branch/worktree the default way to run every experiment.
+- Use Git branches/worktrees only for explicit collaboration, cleanup branches, paper branches, release work, or other cases where history isolation is required. Do not make a new branch/worktree the default way to run every experiment.
 - Parallel experiments should use separate experiment folders, not shared `outputs/`, `runs/`, `wandb/`, or checkpoint directories.
 - Shared code changes must be deliberate and reviewed against the active `scope.lock`; experiment-specific glue belongs inside the experiment folder.
 - `.lablock/state/current-exp` is a focus pointer for hooks and dashboards, not the isolation boundary.

@@ -385,7 +385,7 @@ LabLock skills 分两类：
 
 - 提交实验定义。
 - 默认继续在 `experiments/<exp>-<shortname>/` 文件夹中隔离运行。
-- 只有需要 Git 历史隔离、远端 CI、多人协作或 cleanup PR 时再用 `/lab-exp-start`。
+- 只有需要 Git 历史隔离、远端 CI、多人协作或归档历史时再用 `/lab-exp-start`。
 
 ### `/lab-exp-start`
 
@@ -395,7 +395,7 @@ LabLock skills 分两类：
 
 - `/lab-exp-init` 的实验文件已经提交。
 - 工作区干净。
-- 明确需要独立 branch：远端 CI、多人协作、cleanup PR、归档历史，或用户显式要求。
+- 明确需要独立 branch：远端 CI、多人协作、归档历史，或用户显式要求。
 
 **不要何时使用**：
 
@@ -560,7 +560,7 @@ LabLock skills 分两类：
 
 - 实验 `status=done`。
 - 你要把 formalism、claims、decision 或部分 utility code merge 回 main。
-- 实验 branch 里有很多临时脚本/debug noise，不想污染 main。
+- 实验文件夹或实验 source ref 里有很多临时脚本/debug noise，不想污染 main。
 
 **不要何时使用**：
 
@@ -917,7 +917,7 @@ LabLock skills 分两类：
 /lab-init -> /lab-plan -> /lab-plan-exp -> /lab-exp-init -> /lab-exp-run
 ```
 
-`/lab-exp-start` is optional when a Git branch is needed for collaboration, remote CI, cleanup PR, or archival history isolation.
+`/lab-exp-start` is optional when a Git branch is needed for collaboration, remote CI, or archival history isolation.
 
 ### 已有项目
 

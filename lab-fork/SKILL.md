@@ -124,7 +124,7 @@ For parallel forks, prefer a separate experiment folder without a new branch. If
 git checkout -b "exp/<new-id>-<shortname>"
 ```
 
-Suggest this only when the user explicitly asks for branch isolation, remote CI, or cleanup PR flow.
+Suggest this only when the user explicitly asks for branch isolation, remote CI, or archival history.
 
 ## Failure modes
 

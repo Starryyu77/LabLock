@@ -43,7 +43,7 @@ afterEach(async () => {
 });
 
 describe('controlled dogfood rehearsal', () => {
-  test('init, exp-start, drift override, finalize, postmortem, and audit', async () => {
+  test('init, folder-isolated drift override, finalize, postmortem, and audit', async () => {
     await run([process.execPath, lablock, 'init-project', '--name', 'Dogfood', '--modules', 'gpu,data,lit'], cwd);
     await mkdir(join(cwd, 'src'), { recursive: true });
     await writeFile(join(cwd, 'src/model.py'), 'BASE = True\n');
@@ -67,8 +67,9 @@ describe('controlled dogfood rehearsal', () => {
     ], cwd);
     await git(cwd, ['commit', '-m', 'create baseline']);
 
-    await run([process.execPath, lablock, 'exp-start', '--exp', 'exp-001', '--base', 'main'], cwd);
-    expect((await git(cwd, ['branch', '--show-current'])).stdout.trim()).toBe('exp/exp-001-baseline');
+    await mkdir(join(cwd, '.lablock/state'), { recursive: true });
+    await writeFile(join(cwd, '.lablock/state/current-exp'), 'exp-001\n');
+    expect((await git(cwd, ['branch', '--show-current'])).stdout.trim()).toBe('main');
     expect(await readFile(join(cwd, '.lablock/state/current-exp'), 'utf8')).toBe('exp-001\n');
 
     await writeFile(join(cwd, 'experiments/exp-001-baseline/config.yaml'), 'optimizer:\n  lr: 0.002\nseed: 1\n');

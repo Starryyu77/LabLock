@@ -22,7 +22,7 @@ Required:
 Verify:
 
 - Experiment folder and `.lablock/locks/<exp-id>.scope.lock` exist. Folder-isolated experiments do not require a matching Git branch.
-- If the user is on an `exp/<exp-id>-*` branch, tags will naturally point at that branch's HEAD. If not, warn that the final tag points at the current HEAD and ask for confirmation before tagging.
+- The final tag points at current HEAD. Folder-isolated experiments can finalize from `main` or a normal working branch. Warn only if the user is on a different `exp/<other-id>-*` branch.
 - Working tree clean (no uncommitted changes that should be in the final tag).
 
 ## Step 0: Confirm status meaning

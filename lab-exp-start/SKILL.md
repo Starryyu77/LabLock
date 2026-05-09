@@ -1,7 +1,7 @@
 ---
 name: lab-exp-start
 description: |
-  Optionally create a Git branch for an already-committed experiment when history isolation, remote CI, collaboration, or cleanup PR flow is needed. Requires a clean tree, creates exp/<exp-id>-<shortname>, sets current-exp, and optionally pushes. Folder isolation remains the default. User-invoked only.
+  Optionally create a Git branch for an already-committed experiment when history isolation, remote CI, collaboration, or archival history is needed. Requires a clean tree, creates exp/<exp-id>-<shortname>, sets current-exp, and optionally pushes. Folder isolation remains the default. User-invoked only.
 disable-model-invocation: true
 related-skills:
   - lab-exp-init
@@ -11,7 +11,7 @@ related-skills:
 
 # /lab-exp-start
 
-You are creating an optional Git branch for an experiment that already exists as a folder-isolated LabLock node. The user has already run `/lab-exp-init` and committed the experiment files on `main` or the chosen base branch. Only do this when they explicitly want branch-based history isolation, remote CI, collaboration, or cleanup PR flow.
+You are creating an optional Git branch for an experiment that already exists as a folder-isolated LabLock node. The user has already run `/lab-exp-init` and committed the experiment files on `main` or the chosen base branch. Only do this when they explicitly want branch-based history isolation, remote CI, collaboration, or archival history.
 
 ## Pre-flight
 

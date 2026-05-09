@@ -24,7 +24,7 @@ For the full explanation of every skill, see `docs/skills-reference.md`.
 ## Experiment Lifecycle
 
 - Create experiment files and `scope.lock`: `/lab-exp-init`
-- Optional Git branch isolation for collaboration/CI/cleanup PR: `/lab-exp-start`
+- Optional Git branch isolation for collaboration/CI/archival history: `/lab-exp-start`
 - Start a training or evaluation run: `/lab-exp-run`
 - Commit is blocked by SCOPE-DRIFT: `/lab-guard`
 - Drift should become a new baseline: `/lab-fork`

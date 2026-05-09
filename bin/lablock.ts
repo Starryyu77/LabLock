@@ -473,8 +473,8 @@ async function expFinalize(opts: { exp: string; status: string; tag?: boolean; c
   if (!valid.includes(opts.status)) throw new Error(`--status must be one of: ${valid.join(', ')}`);
   const branch = await rawGit(['branch', '--show-current']).then((s) => s.trim()).catch(() => '');
   const expectedPrefix = `exp/${opts.exp}-`;
-  if (!branch.startsWith(expectedPrefix)) {
-    process.stderr.write(`LabLock warning: finalizing ${opts.exp} from branch ${branch || 'DETACHED'}; expected ${expectedPrefix}*. If --tag is used, the tag will point at current HEAD.\n`);
+  if (branch.startsWith('exp/') && !branch.startsWith(expectedPrefix)) {
+    process.stderr.write(`LabLock warning: finalizing ${opts.exp} while on different experiment branch ${branch}; expected ${expectedPrefix}*. If --tag is used, the tag will point at current HEAD.\n`);
   }
   const doc = await readFrontmatter(`${dir}/hypothesis.md`);
   await writeFrontmatter(`${dir}/hypothesis.md`, {

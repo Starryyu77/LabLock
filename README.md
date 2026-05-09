@@ -192,7 +192,7 @@ LabLock skills 分两类：
 | Skill | 什么时候用 | 它做什么 | 主要输出 |
 |---|---|---|---|
 | `/lab-exp-init` | 新实验、ablation 或新 baseline 开始前 | 分配 `exp-NNN`，创建 hypothesis、config、scope.lock、results | `experiments/<exp>-<shortname>/`、`.lablock/locks/<exp>.scope.lock` |
-| `/lab-exp-start` | 明确需要 Git 历史隔离/协作/远端 CI 时 | 要求 clean tree，从 base 创建 experiment branch，设置 current-exp，可选 push；不是默认实验隔离方式 | `exp/<exp>-<shortname>` branch |
+| `/lab-exp-start` | 可选：明确需要 Git 历史隔离/协作/远端 CI 时 | 要求 clean tree，从 base 创建 experiment branch，设置 current-exp，可选 push；实验主体仍是 folder + lock | optional `exp/<exp>-<shortname>` branch |
 | `/lab-exp-run` | 准备启动训练或实验命令 | scope pre-flight，设置 `.lablock/state/current-exp`，记录 run 信息 | `infra/gpu/runs.md` 更新和 canonical command |
 | `/lab-guard` | pre-commit 报 SCOPE-DRIFT | 展示 drift，要求选择 fork、update lock + decision、或 revert | accountability artifact 或中止 commit |
 | `/lab-fork` | 当前实验变量漂移，应该成为新实验 | 创建新 `exp-NNN`，设置 `forked_from`，复制/更新 lock，可标记原实验 superseded | 新 experiment dir、new scope.lock、decision |
@@ -229,7 +229,7 @@ LabLock skills 分两类：
 4. `/lab-exp-init`
 5. `/lab-exp-run`
 
-需要 Git 历史隔离、远端 CI、多人协作或 cleanup PR 时，再插入 `/lab-exp-start`。
+需要 Git 历史隔离、远端 CI、多人协作或归档历史时，再插入 `/lab-exp-start`。
 
 ### 接入已有科研仓库
 

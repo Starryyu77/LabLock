@@ -19,7 +19,8 @@ Dogfood passes if all of these are true:
 
 - `/lab-init` or `lablock init-project` can initialize without manual file surgery.
 - `lablock exp-init` creates a useful `scope.lock` in under 20 minutes.
-- `lablock exp-start` creates a clean experiment branch and current-exp state.
+- A folder-isolated experiment can run from `experiments/<exp>-<shortname>/` without creating a Git experiment branch.
+- Optional `lablock exp-start` still works when branch isolation is explicitly requested for collaboration, remote CI, or archival history.
 - An intentional config drift is blocked by pre-commit until override/fork accountability exists.
 - `lablock override` lets an intentional drift commit pass with a valid decision and trailer.
 - `lablock fork` creates a new experiment when an invariant file changes.
@@ -38,7 +39,7 @@ Record each friction item with:
 
 | Field | Meaning |
 |---|---|
-| `phase` | init, exp-init, exp-start, drift, override, fork, finalize, audit |
+| `phase` | init, exp-init, exp-run, optional-exp-start, drift, override, fork, finalize, audit |
 | `severity` | blocker, slows-work, annoyance, unclear-doc |
 | `trigger` | command or workflow moment |
 | `what happened` | concrete output or behavior |
@@ -79,14 +80,18 @@ lablock exp-init baseline \
   --stage
 
 git commit -m "Create baseline experiment"
-lablock exp-start --exp=exp-001
 ```
+
+Then invoke `/lab-exp-run --exp=exp-001` from the agent environment. This records the active experiment focus and run metadata without creating a Git experiment branch.
 
 Record:
 
 - which `scope.lock` fields were hard to fill;
 - whether config/file invariants were obvious;
+- whether folder-local paths for config, outputs, logs, checkpoints, and results were easy to understand;
 - whether the command names matched user expectations.
+
+Only run `lablock exp-start --exp=exp-001` if this dogfood pass is explicitly testing optional Git branch isolation.
 
 ## Day 2: Drift Handling
 

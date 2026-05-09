@@ -133,7 +133,7 @@ Print to the user:
 - Path to `.lablock/locks/<exp-NNN>.scope.lock`
 - Path to `experiments/<exp-NNN>-<shortname>/hypothesis.md`
 - A reminder: "scope.lock is the contract. Amendments later require a `decisions/` entry."
-- Next step: "Continue in `experiments/<exp-NNN>-<shortname>/` by default. Run `/lab-exp-run --exp=<exp-NNN>` when ready to launch a run. Use `/lab-exp-start` only if you explicitly need a Git branch for collaboration, cleanup PR, remote CI, or archival history isolation."
+- Next step: "Continue in `experiments/<exp-NNN>-<shortname>/` by default. Run `/lab-exp-run --exp=<exp-NNN>` when ready to launch a run. Use `/lab-exp-start` only if you explicitly need a Git branch for collaboration, remote CI, or archival history isolation."
 
 Then commit. The hook will treat this as a project bookkeeping commit when no experiment focus is active:
 

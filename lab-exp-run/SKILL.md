@@ -31,13 +31,13 @@ LabLock does not own job submission. You will print the command and the user wil
 
 ## Step 1: Set current-exp
 
-Write the exp-id to `.lablock/state/current-exp` so all subsequent commits on this branch are tracked to this experiment:
+Write the exp-id to `.lablock/state/current-exp` so hooks and dashboards know which experiment is in focus:
 
 ```bash
 echo "<exp-id>" > .lablock/state/current-exp
 ```
 
-This is gitignored; it is a focus pointer for hooks and dashboards, not the isolation boundary.
+This is gitignored; it is a focus pointer, not the isolation boundary. The isolation boundary is the experiment folder plus `.lablock/locks/<exp-id>.scope.lock`.
 
 ## Step 2: Update GPU runs ledger
 

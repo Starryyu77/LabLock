@@ -62,7 +62,7 @@ Do not run expensive scans. Do not modify files.
 ### Experiment lifecycle
 
 - Create experiment directory, hypothesis, config, and `scope.lock`: `/lab-exp-init`
-- Experiment files are committed and user needs experiment branch/current-exp: `/lab-exp-start`
+- Experiment files are committed and user explicitly needs a Git experiment branch: `/lab-exp-start`
 - Start a run, verify scope, set current-exp, record run command: `/lab-exp-run`
 - Commit is blocked by SCOPE-DRIFT: `/lab-guard`
 - Drift should become a new experiment baseline: `/lab-fork`

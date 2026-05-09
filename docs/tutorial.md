@@ -3,7 +3,7 @@
 这份教程面向第一次使用 LabLock 的用户。目标是走完一个最小闭环：
 
 ```text
-安装 LabLock -> 初始化/迁移科研仓库 -> 创建第一个 scope.lock -> 开始实验分支 -> 处理 drift -> finalize/audit
+安装 LabLock -> 初始化/迁移科研仓库 -> 创建第一个 scope.lock -> 文件夹隔离运行 -> 处理 drift -> finalize/audit
 ```
 
 如果你只想快速安装，先看第 1 节。如果你已经有旧科研仓库，直接看第 4 节。
@@ -218,7 +218,7 @@ lablock exp-init contrastive-baseline \
 git commit -m "create first LabLock experiment"
 ```
 
-然后创建实验分支：
+默认继续在实验文件夹中运行；如果明确需要 Git 历史隔离、远端 CI 或多人协作，再创建实验分支：
 
 ```bash
 lablock exp-start --exp=exp-001
@@ -226,7 +226,7 @@ lablock exp-start --exp=exp-001
 
 ## 6. 日常开发：正常提交
 
-实验分支上正常改代码、跑训练、记录结果。提交时 hook 会自动：
+在对应实验文件夹中正常改代码、跑训练、记录结果。提交时 hook 会自动：
 
 - 校验 frontmatter
 - 检查大文件/LFS

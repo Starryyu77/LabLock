@@ -247,13 +247,13 @@ git add experiments/exp-003-contrastive-loss .lablock/locks/exp-003.scope.lock
 git commit -m "create contrastive-loss experiment"
 ```
 
-创建实验分支：
+默认继续在实验文件夹中运行；如果明确需要 Git 历史隔离、远端 CI 或多人协作，再创建实验分支：
 
 ```bash
 lablock exp-start --exp=exp-003
 ```
 
-这会让 dashboard 显示从历史 run 到当前受控实验的关系。
+LabLock experiment node 本身会让 dashboard 显示从历史 run 到当前受控实验的关系；分支只是可选的 Git 历史隔离。
 
 ## Step 6：正常实验提交
 

@@ -11,13 +11,13 @@ related-skills:
 
 # /lab-exp-run
 
-You are starting an experiment run. The user has done `/lab-exp-init` and `/lab-exp-start`; now they want to actually launch training.
+You are starting an experiment run. The user has done `/lab-exp-init`; `/lab-exp-start` is optional and only needed when they explicitly want Git branch isolation.
 
 LabLock does not own job submission. You will print the command and the user will run it (locally, via tmux, via Slurm—not your concern).
 
 ## Pre-flight
 
-1. **Verify exp branch.** Run `git branch --show-current`. Should match `exp/<exp-id>-<shortname>`. If not, refuse: "Switch to the experiment branch first, or run `/lab-exp-start`."
+1. **Verify experiment folder.** Ensure `experiments/<exp-id>-<shortname>/hypothesis.md` and `.lablock/locks/<exp-id>.scope.lock` exist. Folder isolation is the default; a matching Git branch is optional.
 2. **Verify clean tree.** Run `git status --porcelain`. Reject if dirty: "Commit or stash before running."
 3. **Verify scope.lock pre-flight.** Run:
    ```bash
@@ -37,7 +37,7 @@ Write the exp-id to `.lablock/state/current-exp` so all subsequent commits on th
 echo "<exp-id>" > .lablock/state/current-exp
 ```
 
-This is gitignored; doesn't pollute the tree.
+This is gitignored; it is a focus pointer for hooks and dashboards, not the isolation boundary.
 
 ## Step 2: Update GPU runs ledger
 
@@ -121,7 +121,7 @@ Tell the user clearly:
 
 - **Verify-scope returns drift before run starts** → refuse. The user must clean up first.
 - **`infra/gpu/machines.md` missing** → don't fail; suggest creating it via `/lab-init` Layer 2 modules, but proceed anyway with user-supplied machine info.
-- **Already on a different exp branch's `current-exp`** → warn, ask user to confirm switching focus.
+- **Already focused on a different `current-exp`** → warn, ask user to confirm switching focus.
 
 ## Don't
 

@@ -28,7 +28,7 @@ LabLock skills 分两类：
 | 审计划/实验设计 | `/lab-review` |
 | 四种视角完整压力测试 | `/lab-autoplan` |
 | 创建实验目录和 `scope.lock` | `/lab-exp-init` |
-| 创建实验分支 | `/lab-exp-start` |
+| 明确需要 Git 实验分支 | `/lab-exp-start` |
 | 启动训练/实验运行 | `/lab-exp-run` |
 | commit 被 SCOPE-DRIFT 拦住 | `/lab-guard` |
 | drift 应该变成新实验 | `/lab-fork` |
@@ -153,7 +153,7 @@ LabLock skills 分两类：
 
 - 审阅看板。
 - 提交新实验节点。
-- 用 `/lab-exp-start` 创建实验分支。
+- 默认在实验文件夹内继续；需要 Git 历史隔离时再用 `/lab-exp-start`。
 
 ### `/lab-migrate`
 
@@ -384,23 +384,25 @@ LabLock skills 分两类：
 **下一步**：
 
 - 提交实验定义。
-- `/lab-exp-start` 创建实验分支。
+- 默认继续在 `experiments/<exp>-<shortname>/` 文件夹中隔离运行。
+- 只有需要 Git 历史隔离、远端 CI、多人协作或 cleanup PR 时再用 `/lab-exp-start`。
 
 ### `/lab-exp-start`
 
-**作用**：从主线创建实验分支，并设置当前实验状态。
+**作用**：在明确需要 Git 历史隔离时创建实验分支，并设置当前实验状态。
 
 **何时使用**：
 
 - `/lab-exp-init` 的实验文件已经提交。
 - 工作区干净。
-- 准备在独立 branch 上开始实验。
+- 明确需要独立 branch：远端 CI、多人协作、cleanup PR、归档历史，或用户显式要求。
 
 **不要何时使用**：
 
 - 实验定义还没提交。
 - 工作区有未提交改动。
 - 想创建实验文件。用 `/lab-exp-init`。
+- 只是想并行跑实验。默认用不同 `experiments/<exp>-<shortname>/` 文件夹隔离。
 
 **会做什么**：
 
@@ -425,13 +427,12 @@ LabLock skills 分两类：
 
 **何时使用**：
 
-- 已经在实验 branch 上。
-- `scope.lock` 已创建。
+- `scope.lock` 已创建，实验文件夹存在。
 - 准备启动训练/评估命令。
 
 **不要何时使用**：
 
-- 还没创建实验分支。
+- 还没创建实验节点或 `scope.lock`。
 - 想让 LabLock 替你提交 Slurm/tmux/job。LabLock 只打印 canonical command，不拥有你的训练系统。
 
 **会做什么**：
@@ -515,7 +516,7 @@ LabLock skills 分两类：
 **下一步**：
 
 - 提交 fork artifact。
-- 在新实验分支继续工作。
+- 默认在新实验文件夹继续；需要 Git 历史隔离时再用 `/lab-exp-start`。
 
 ### `/lab-exp-finalize`
 
@@ -530,7 +531,7 @@ LabLock skills 分两类：
 
 - 实验还没产生可解释结果。
 - 工作区不干净。
-- 不在对应 experiment branch 上。
+- 实验文件夹或 `scope.lock` 不存在。
 
 **会做什么**：
 
@@ -913,8 +914,10 @@ LabLock skills 分两类：
 ### 新项目
 
 ```text
-/lab-init -> /lab-plan -> /lab-plan-exp -> /lab-exp-init -> /lab-exp-start -> /lab-exp-run
+/lab-init -> /lab-plan -> /lab-plan-exp -> /lab-exp-init -> /lab-exp-run
 ```
+
+`/lab-exp-start` is optional when a Git branch is needed for collaboration, remote CI, cleanup PR, or archival history isolation.
 
 ### 已有项目
 

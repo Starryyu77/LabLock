@@ -21,7 +21,8 @@ Required:
 
 Verify:
 
-- Currently on the matching `exp/<exp-id>-*` branch (so the tag points at the right HEAD). If not, refuse: "Switch to the experiment branch first."
+- Experiment folder and `.lablock/locks/<exp-id>.scope.lock` exist. Folder-isolated experiments do not require a matching Git branch.
+- If the user is on an `exp/<exp-id>-*` branch, tags will naturally point at that branch's HEAD. If not, warn that the final tag points at the current HEAD and ask for confirmation before tagging.
 - Working tree clean (no uncommitted changes that should be in the final tag).
 
 ## Step 0: Confirm status meaning
@@ -68,11 +69,16 @@ Hooks will add the LabLock scope/tag prefix and `LabLock-Change` trailer.
 ## Step 3: Push tag
 
 ```bash
-git push origin exp/<exp-id>-<shortname>
 git push origin <exp-id>-final
 ```
 
-The tag is the permanent reference for this experiment's frozen state. Even if branches are deleted, the tag survives.
+If an experiment branch exists and the user wants remote archival history, also push it explicitly:
+
+```bash
+git push origin exp/<exp-id>-<shortname>
+```
+
+The tag is the permanent reference for this experiment's frozen state. Branches are optional in folder-isolated workflows.
 
 ## Step 4: Branch by outcome
 
@@ -96,13 +102,13 @@ This generates a focused PR that includes only:
 - Reusable utility code (you'll review per-file)
 
 Excluded from the cleanup PR:
-- experiment scripts and configs (live forever in the exp branch + tag)
+- experiment scripts and configs (live in the experiment folder and final tag)
 - debug noise
 
 After review, run /lab-synthesize to incorporate this experiment's results into claims.
 ```
 
-Tell user to NOT delete the experiment branch. The branch + tag is the permanent record.
+Tell user not to delete the experiment folder or final tag. A branch is optional and only needed when they used branch isolation.
 
 ### Outcome: `killed`
 
@@ -155,7 +161,7 @@ Print clean summary:
 Finalized: <exp-id>
 Status: <status>
 Tag: <exp-id>-final
-Branch: exp/<exp-id>-<shortname> (kept as archival reference)
+Branch: <exp branch if one was used; otherwise folder-isolated>
 current-exp cleared.
 
 Next:
@@ -165,14 +171,14 @@ Next:
 ## Special cases
 
 - **Multiple commits since last activity**: that's fine; the tag points at HEAD which captures all of them.
-- **Branch ahead of origin**: push before tagging so the tag is reachable from remote.
+- **Branch-isolated experiment ahead of origin**: push before tagging so the tag is reachable from remote.
 - **`--no-clear-current`**: rare, but useful if user wants to do post-finalize commits (e.g., adding the postmortem) on the same branch before switching context. Default behavior is to clear.
-- **User wants to delete the branch**: discourage. Tell them: "The branch is your record. Delete only via `/lab-tidy` after archival policies have run."
+- **User wants to delete a branch-isolated experiment branch**: discourage until the final tag is pushed and archival policy has run.
 
 ## Don't
 
 - Don't proceed if status is unclear. The three statuses have different downstream consequences.
 - Don't skip the tag. It's the permanent reference.
 - Don't auto-cherry-pick anything to main here. That's `/lab-cleanup-pr`'s job for `done` exps.
-- Don't delete the experiment branch as part of finalization.
+- Don't delete experiment folders or branch-isolated experiment branches as part of finalization.
 - Don't allow finalization while the working tree is dirty—the tag would be ambiguous.

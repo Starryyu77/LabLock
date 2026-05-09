@@ -133,9 +133,9 @@ Print to the user:
 - Path to `.lablock/locks/<exp-NNN>.scope.lock`
 - Path to `experiments/<exp-NNN>-<shortname>/hypothesis.md`
 - A reminder: "scope.lock is the contract. Amendments later require a `decisions/` entry."
-- Next step: "Run `/lab-exp-start --exp=<exp-NNN>` to create the git branch."
+- Next step: "Continue in `experiments/<exp-NNN>-<shortname>/` by default. Run `/lab-exp-run --exp=<exp-NNN>` when ready to launch a run. Use `/lab-exp-start` only if you explicitly need a Git branch for collaboration, cleanup PR, remote CI, or archival history isolation."
 
-Then commit. If this is still on `main` before `/lab-exp-start`, the hook will treat this as a main-branch project bookkeeping commit:
+Then commit. The hook will treat this as a project bookkeeping commit when no experiment focus is active:
 
 ```bash
 git commit -m "create <exp-NNN>"
@@ -153,5 +153,5 @@ The hooks will add the LabLock prefix and `LabLock-Change` trailer.
 
 - Don't create probes you don't understand. If the user has no contract tests yet, leave Layer 3 empty.
 - Don't accept fewer than 1 kill criterion or 1 success criterion. The CLI will reject this anyway.
-- Don't create a git branch in this skill—that's `/lab-exp-start`.
+- Don't create a git branch in this skill. Folder isolation is the default; `/lab-exp-start` is optional.
 - Don't accept hypotheses without a measurable claim.

@@ -168,7 +168,7 @@ Tell the user:
 > - `/lab-review --as=reviewer2 plans/<this-file>.md` to stress-test the design
 > - `/lab-review --as=feasibility plans/<this-file>.md` to check compute / time budget realism
 >
-> Or if you're confident, run the suggested CLI command and continue with `/lab-exp-start`.
+> Or if you're confident, run the suggested CLI command and continue with folder-isolated execution via `/lab-exp-run`. Use `/lab-exp-start` only when you explicitly need a Git branch.
 
 ## Don't
 

@@ -111,5 +111,5 @@ For status questions, use `lablock dashboard --json` and report:
 
 - Do not edit `.lablock/dashboard/index.html` directly; it is generated.
 - Do not invent experiment records just to make the board look populated.
-- Do not create a git branch; use `/lab-exp-start` after the experiment node is committed.
+- Do not create a git branch by default. Use `/lab-exp-start` only when the user explicitly wants Git history isolation, remote CI, collaboration, or cleanup PR flow.
 - If the user has only a vague idea, route to `/lab-plan-exp` before creating an experiment.

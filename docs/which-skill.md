@@ -26,7 +26,7 @@ For the full explanation of every skill, see `docs/skills-reference.md`.
 - Create experiment files and `scope.lock`: `/lab-exp-init`
 - Optional Git branch isolation for collaboration/CI/archival history: `/lab-exp-start`
 - Start a training or evaluation run: `/lab-exp-run`
-- Commit is blocked by SCOPE-DRIFT: `/lab-guard`
+- Commit produced a SCOPE-DRIFT warning: `/lab-guard`
 - Drift should become a new baseline: `/lab-fork`
 - Experiment is done, killed, or superseded: `/lab-exp-finalize`
 - Failed/killed/superseded experiment needs writeup: `/lab-postmortem`
@@ -36,6 +36,7 @@ For the full explanation of every skill, see `docs/skills-reference.md`.
 
 - Failure needs investigation before fixes: `/lab-debug`
 - Context must be sent to another AI or teammate: `/lab-handoff`
+- Another AI should write experiment code/scripts under a specific LabLock experiment: `/lab-handoff --type=implementation`
 
 ## Claims, Formalism, Paper
 

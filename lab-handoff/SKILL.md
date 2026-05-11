@@ -1,7 +1,7 @@
 ---
 name: lab-handoff
 description: |
-  Package self-contained context for another AI or teammate. Use for "handoff", "ask another AI", "send to ChatGPT", or "package context". Modes: debug, method, results, design, writing. Writes handoffs/outgoing/.
+  Package self-contained context for another AI or teammate. Use for "handoff", "ask another AI", "send to ChatGPT", "implementation prompt", or "package context". Modes: debug, method, results, design, writing, implementation. Writes handoffs/outgoing/.
 disable-model-invocation: false
 related-skills:
   - lab-debug
@@ -17,12 +17,13 @@ The user typically arrives here when:
 - They want a method check or formalism review from a stronger model
 - They want help writing a paper section
 - They want design feedback
+- They want a coding agent to implement experiment code while following the active research objective
 
 ## Pre-flight
 
 Required:
 
-- `--type=<mode>`: `debug | method | results | design | writing`. If user didn't specify, ask which.
+- `--type=<mode>`: `debug | method | results | design | writing | implementation`. If user didn't specify, ask which.
 - `--topic=<short-name>`: used in the filename. Slugified.
 
 Optional:
@@ -57,6 +58,55 @@ Every handoff bundle starts with:
 ```
 
 This frames the AI before mode-specific content.
+
+## Mode: implementation
+
+Use this when the user needs another AI/coding agent to write experiment code or scripts. LabLock still does not implement the code itself; it writes the prompt that keeps that coding work aligned to the experiment.
+
+Add:
+
+```markdown
+## Coding task
+
+<specific implementation request>
+
+## Research objective to preserve
+
+- Experiment: <exp-id>
+- Hypothesis: <from hypothesis.md>
+- Primary intervention: <from controlled_changes>
+- Planned bundle: <if any>
+- Success criteria: <from scope.lock>
+
+## Source of truth
+
+The coding agent must read these before editing:
+- `experiments/<exp>/hypothesis.md`
+- `experiments/<exp>/config.yaml`
+- `.lablock/locks/<exp>.scope.lock`
+- <any user-specified design/doc paths>
+
+## Allowed changes
+
+- Experiment-local scripts/configs under `experiments/<exp>/`
+- Shared code only when required to test the hypothesis
+- Tests or probes that directly verify the research effect
+
+## Avoid
+
+- Adding broad defensive gates, abstractions, retries, validators, or policy checks unless required by the experiment
+- Reframing the research goal
+- Moving run outputs outside the experiment folder
+
+## Expected output
+
+- Code changes made
+- Verification command(s)
+- Where results/logs should be written
+- Any drift that should be classified with `/lab-guard`
+```
+
+If the user asks for "AI 写代码/脚本", prefer this mode over inventing a new LabLock implementation skill.
 
 ## Mode: debug
 

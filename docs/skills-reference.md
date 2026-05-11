@@ -10,8 +10,8 @@ LabLock skills 分两类：
 使用原则：
 
 - 新项目用 `/lab-init`，旧项目用 `/lab-migrate`。
-- 实验开始前先设计，再创建 `scope.lock`。
-- scope drift 不要绕过 hook，要走 `/lab-guard`、`/lab-fork` 或 `lablock override`。
+- 实验开始前先设计，再创建 `scope.lock` 作为研究目标和实验 frame。
+- scope drift 默认是研究对齐提醒，不是本地硬阻断；需要分类时走 `/lab-guard`、`/lab-fork` 或 `lablock override`。
 - 论文写作只基于 `claims.md` 和 evidence，不让 paper claim 脱离实验。
 
 ## 快速选择表
@@ -30,10 +30,10 @@ LabLock skills 分两类：
 | 创建实验目录和 `scope.lock` | `/lab-exp-init` |
 | 明确需要 Git 实验分支 | `/lab-exp-start` |
 | 启动训练/实验运行 | `/lab-exp-run` |
-| commit 被 SCOPE-DRIFT 拦住 | `/lab-guard` |
+| commit 出现 SCOPE-DRIFT warning | `/lab-guard` |
 | drift 应该变成新实验 | `/lab-fork` |
-| debug 前先系统调查 | `/lab-debug` |
-| 打包上下文给外部 AI/队友 | `/lab-handoff` |
+| debug 时保持目标对齐和最小验证 | `/lab-debug` |
+| 打包上下文或实验实现提示词给外部 AI/队友 | `/lab-handoff` |
 | 多实验结果综合成 claims | `/lab-synthesize` |
 | 实验失败/被 kill 后复盘 | `/lab-postmortem` |
 | 更新 formalism/loss/algorithm | `/lab-formalism-update` |
@@ -82,6 +82,7 @@ LabLock skills 分两类：
 
 - 用户确认后调用推荐的 skill。
 - 如果 no match，走普通 AI/CLI 工作流，而不是强行套 LabLock。
+- 如果是“让 AI 写当前实验代码/脚本”，推荐 `/lab-handoff --type=implementation`，生成给 coding agent 的约束提示词。
 
 ### `/lab-init`
 
@@ -454,36 +455,37 @@ LabLock skills 分两类：
 
 ### `/lab-guard`
 
-**作用**：处理 commit 时被 LabLock 拦住的 SCOPE-DRIFT。
+**作用**：把 SCOPE-DRIFT warning 按研究目标分类。
 
 **何时使用**：
 
-- pre-commit 报 `SCOPE-DRIFT detected`。
-- 你不确定应该 fork、override 还是 revert。
+- pre-commit 报 `SCOPE-DRIFT warning`。
+- 你不确定 drift 是应该 fork、override、continue-with-note 还是 revert。
 
 **不要何时使用**：
 
 - 没有 drift，只是普通 commit。
-- 想绕过 hook。不要用 `git commit --no-verify` 作为默认路径。
+- 只是想继续提交。默认 drift warning 不会阻断本地进度。
 
 **会做什么**：
 
 - 读取 drift 信息。
 - 展示具体漂移：哪个 config key、哪个 file hash、expected vs actual。
-- 引导用户三选一：
+- 引导用户四选一：
   - fork：新实验方向。
   - override/update lock：有理由接受 drift。
+  - continue-with-note：继续推进，但把解释 caveat 记下来。
   - revert：误改。
 
 **主要输出**：
 
-- fork artifact、decision/override artifact，或撤回改动。
+- fork artifact、decision/override/note artifact，或撤回改动。
 
 **下一步**：
 
 - `/lab-fork`。
 - `lablock override --exp=... --reason=...`。
-- 重新 commit。
+- 继续实验或记录结果。
 
 ### `/lab-fork`
 
@@ -653,13 +655,13 @@ LabLock skills 分两类：
 
 ### `/lab-handoff`
 
-**作用**：把上下文打包给外部 AI、队友或另一个工具。
+**作用**：把上下文或实验实现提示词打包给外部 AI、队友或另一个工具。
 
 **何时使用**：
 
 - 要问 ChatGPT web、同事或另一个 agent。
 - 需要 self-contained context，而不是让对方翻整个 repo。
-- debug/method/results/design/writing 任一场景。
+- debug/method/results/design/writing/implementation 任一场景。
 
 **不要何时使用**：
 
@@ -668,8 +670,9 @@ LabLock skills 分两类：
 
 **会做什么**：
 
-- 选择 handoff type：debug、method、results、design、writing。
+- 选择 handoff type：debug、method、results、design、writing、implementation。
 - 抽取 project background、formalism、claims、experiment、code/log/traceback/results。
+- `implementation` 类型会生成给 coding agent 的提示词，要求它读取实验文档、围绕研究目标写代码，并避免额外加入防御性 gate。
 - 写成单一 Markdown bundle。
 
 **主要输出**：

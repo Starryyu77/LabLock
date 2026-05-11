@@ -9,7 +9,7 @@ related-skills:
 
 # /lab-formalism-update
 
-You are bumping the formalism version. This is a high-stakes operation because formalism is the contract between code, paper, and AI's understanding. Drift here corrupts everything downstream.
+You are bumping the formalism version. This is high-stakes because formalism connects code, paper, and AI understanding. Keep the change centered on the research objective and make downstream interpretation explicit.
 
 The echo-back protocol is **mandatory**. Skipping it has caused more bugs than any other shortcut.
 

@@ -1,7 +1,7 @@
 ---
 name: lab-debug
 description: |
-  Structured debugging. Use for "debug", "why is X failing", "loss exploded", or "investigate". Enforces reproduce -> trace data flow -> form hypotheses -> test one hypothesis. Writes a debug log under debug/; no git side effects.
+  Research-aligned debugging. Use for "debug", "why is X failing", "loss exploded", or "investigate". Keeps fixes tied to the active experiment goal: reproduce when needed, test a hypothesis, apply minimal target-aligned fixes, and write a debug log.
 disable-model-invocation: false
 related-skills:
   - lab-handoff
@@ -9,13 +9,13 @@ related-skills:
 
 # /lab-debug
 
-You are a structured debugger. Your iron law: **no fixes without investigation**. Most debugging failures come from jumping to fixes before understanding the cause. You will refuse to suggest code changes until you've done the investigation.
+You are a research-aligned debugger. Your default is: keep the experiment moving toward its original goal, while gathering enough evidence that a fix is not random thrashing. Do not make debugging discipline more important than the research objective.
 
 ## Mode
 
 You may be invoked while an experiment is in progress (current-exp set) or off-experiment. Adapt:
 
-- If `current-exp` is set or the debug target is under `experiments/<exp>-...`: any code change you suggest must respect `scope.lock`. Proposing a change to a locked file invariant means you're really proposing a fork.
+- If `current-exp` is set or the debug target is under `experiments/<exp>-...`: interpret changes against the active hypothesis and `scope.lock`. Touching a locked invariant is allowed when it is the most direct path to the research goal, but it should be classified via `/lab-guard` if it changes the experiment meaning.
 - Off-experiment: more freedom, but still investigate first.
 
 ## Phase 1: Reproduce
@@ -27,7 +27,7 @@ Ask the user:
 - **Was it ever working?** If yes, what changed? (`git log` from last known good)
 - **Frequency**: deterministic, intermittent, only on specific data?
 
-If the user can't answer these, the first task is to gather data. Don't proceed to Phase 2 until the bug is reproducible.
+If the user can't answer these, gather the cheapest useful data first. For obvious one-line breakages, a small target-aligned fix is acceptable after stating the hypothesis.
 
 ## Phase 2: Trace data flow
 
@@ -51,7 +51,7 @@ For evaluation bugs:
 - Compare to a known-good reference run (different seed, baseline, etc.)
 - Check that train/val/test splits are what you think
 
-Do NOT propose fixes during Phase 2. Just gather observations.
+Avoid speculative fixes during Phase 2. If the cause is already isolated, move to a minimal fix rather than adding process.
 
 ## Phase 3: Hypotheses
 
@@ -71,22 +71,22 @@ Pick the hypothesis with the cheapest distinguishing test. Run that test. Either
 - **Refuted**: rule out, return to Phase 3 with remaining hypotheses.
 - **Inconclusive**: design a better test.
 
-Do NOT skip to fixing because you're "pretty sure". The whole point is to confirm before changing code.
+Do not make large fixes because you're "pretty sure". The point is to get enough evidence for the smallest useful change.
 
 ## Phase 5: Apply fix (constrained)
 
 Once a hypothesis is confirmed:
 
 1. **Check scope.lock impact.** If the fix touches a locked file or changes a locked config:
-   - This is not a debug fix—it's a scope change.
-   - Stop. Tell the user: "The fix requires changing a locked invariant. This is `/lab-guard` territory: fork or override."
+   - Explain whether the change still serves the original hypothesis or changes the experiment meaning.
+   - If it changes the experiment meaning, route to `/lab-guard` for fork, override, continue-with-note, or revert.
 2. **Otherwise**, propose the minimal change. Show diff before applying.
 3. **One fix, one commit.** Don't bundle.
 4. **Verify the fix.** Re-run the reproducer. If symptom persists, the hypothesis was wrong (back to Phase 3) or the fix was incomplete.
 
 ## Phase 6: Three-strike rule
 
-If three fix attempts (Phases 4-5 cycles) haven't resolved the bug, **STOP**.
+If three fix attempts (Phases 4-5 cycles) haven't resolved the bug, recenter before more code changes.
 
 This is a sign your investigation was incomplete. Step back:
 
@@ -94,7 +94,7 @@ This is a sign your investigation was incomplete. Step back:
 - What assumption did you not question?
 - Consider `/lab-handoff --type=debug` to bring in a fresh AI perspective.
 
-Do not try a fourth fix without restarting the investigation.
+Do not try a fourth fix without either narrowing the reproducer or explicitly changing the research plan.
 
 ## Step: Write the debug log
 
@@ -159,8 +159,8 @@ This shows up in `/lab-exp-init` recommendations later, helping users avoid past
 
 ## Don't
 
-- Don't propose a fix in Phase 1 or 2. Investigation only.
+- Don't let debugging process become the research agenda.
 - Don't bundle multiple fixes. One hypothesis, one fix, one commit.
-- Don't continue past 3 failed fixes without restarting investigation.
-- Don't propose a fix that touches a locked invariant. Refer to `/lab-guard`.
+- Don't continue past 3 failed fixes without narrowing the reproducer or recentering on the research goal.
+- Don't silently change a locked invariant. Classify the impact with `/lab-guard`.
 - Don't skip writing the debug log. The log IS the value—the fix is incidental.

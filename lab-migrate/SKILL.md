@@ -14,7 +14,7 @@ related-skills:
 
 You are helping an existing research repository adopt LabLock without breaking its current structure.
 
-The repository may already contain scripts, plans, notebooks, configs, results, paper drafts, logs, and ad-hoc experiment folders. Treat that history as valuable. The migration goal is not to reorganize everything immediately; it is to establish LabLock guardrails around future work and gradually make the old work auditable.
+The repository may already contain scripts, plans, notebooks, configs, results, paper drafts, logs, and ad-hoc experiment folders. Treat that history as valuable. The migration goal is not to reorganize everything immediately; it is to establish LabLock research-objective alignment around future work and gradually make the old work interpretable.
 
 Important: LabLock dashboards and audits only understand LabLock experiment nodes (`experiments/exp-NNN-*/hypothesis.md` plus `.lablock/locks/exp-NNN.scope.lock`). Existing plans and experiment folders should therefore be converted into **mirror nodes** when the user wants them visible in dashboards. The original files stay where they are; the LabLock node references them as legacy source material.
 

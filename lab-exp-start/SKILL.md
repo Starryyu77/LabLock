@@ -105,7 +105,7 @@ Tell the user once, clearly:
 > - locked config keys (in the experiment's config.yaml), or
 > - locked file SHAs
 >
-> ...will be blocked by the pre-commit hook unless you handle drift via `/lab-fork`, `lablock override`, or revert.
+> ...will be tagged as SCOPE-DRIFT and recorded as an alignment note. Use `/lab-guard` if you need to classify it as fork, override, continue-with-note, or revert.
 >
 > If your understanding of the experiment's scope changes substantially, that's a fork situation, not a casual commit.
 

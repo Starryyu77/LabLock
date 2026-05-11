@@ -24,11 +24,11 @@ Ask the user:
 
 If parent is given, read `experiments/<parent>-*/hypothesis.md` and the corresponding `.lablock/locks/<parent>.scope.lock`. You'll use these to suggest controlled variables and avoid duplication.
 
-## Step 1: Independent variable (IV)
+## Step 1: Primary Research Intervention
 
-Ask: "What's the ONE thing you're changing?"
+Ask: "What's the primary thing you're changing to reach the research goal?"
 
-The answer must be **one variable**. If the user proposes two (e.g., "add contrastive AND change lr"), force a choice: "Pick one—running them together makes the result uninterpretable. Which is the experiment?"
+Prefer one variable when possible. If the user proposes a bundled intervention (e.g., "add contrastive AND change lr"), ask whether both are necessary to test the intended idea. If yes, record it explicitly as a planned bundle rather than treating it as drift.
 
 Acceptable IVs:
 - Adding a loss term
@@ -36,14 +36,14 @@ Acceptable IVs:
 - Changing a hyperparameter (single value)
 - Switching dataset
 
-## Step 2: Controlled variables (CV)
+## Step 2: Controlled Variables And Planned Bundle
 
 Walk through every variable in the parent experiment's config. For each:
 
 - Is this fixed in the new exp? → goes to `controlled_variables`
-- Is this changed? → if yes and it's not the IV, **stop**. Either it's part of the IV (revise Step 1) or it's drift (refuse the design).
+- Is this changed? → if yes and it's not part of the primary intervention, ask whether it is required for the research goal. If yes, add it to the planned bundle. If no, mark it as avoidable drift.
 
-Be strict. The whole point of this skill is to prevent ambiguous experiments.
+Be clear, not defensive. The point is to keep interpretation tied to the original research target.
 
 ## Step 3: Evaluation metric
 
@@ -118,8 +118,11 @@ target_exp_id: (will be assigned at /lab-exp-init)
 ## Hypothesis (one sentence)
 <from Step 1, refined>
 
-## Independent variable
-<the one thing>
+## Primary intervention
+<the main research change>
+
+## Planned bundle (if any)
+- <additional changes required to make the intervention meaningful>
 
 ## Controlled variables
 - key=value
@@ -172,7 +175,7 @@ Tell the user:
 
 ## Don't
 
-- Don't accept multi-variable experiments. One IV.
+- Don't hide multi-variable interventions. Prefer one primary intervention, but record necessary bundles explicitly.
 - Don't accept "we'll figure it out" for kill criteria. Push for specific numbers.
 - Don't write the actual scope.lock here. That's `/lab-exp-init`'s job.
 - Don't skip Step 4 (predictions). Pre-registered predictions are the difference between an experiment and a fishing expedition.

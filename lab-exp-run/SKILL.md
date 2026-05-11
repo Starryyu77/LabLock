@@ -1,7 +1,7 @@
 ---
 name: lab-exp-run
 description: |
-  Begin running an experiment. Triggers: "run experiment", "start training", "kick off exp", "launch run". Verifies scope.lock pre-flight, sets .lablock/state/current-exp, updates infra/gpu/runs.md, and prints the canonical training command for the user to execute. Does NOT submit a job—LabLock has no opinion on your training infrastructure. The user runs the printed command. This skill writes state files and modifies infra/; user must invoke explicitly.
+  Begin running an experiment. Triggers: "run experiment", "start training", "kick off exp", "launch run". Checks scope.lock as an alignment pre-flight, sets current-exp, updates infra/gpu/runs.md, and prints the canonical command. Does NOT submit jobs. User-invoked only.
 disable-model-invocation: true
 related-skills:
   - lab-exp-init
@@ -23,7 +23,7 @@ LabLock does not own job submission. You will print the command and the user wil
    ```bash
    lablock-verify-scope --exp=<exp-id> --source=working --layers=config,files
    ```
-   If it returns drift, **refuse to start**: "Working tree differs from scope.lock. Address drift before launching the run, or your results won't reflect the locked invariants."
+   If it returns drift, warn clearly and ask whether the user wants to classify it with `/lab-guard` first. Do not turn the warning into a hard gate unless the user says this run must be fully controlled.
 4. **Read `.lablock/locks/<exp-id>.scope.lock`** to extract:
    - `config` invariants (will be passed to training)
    - `kill_criteria` (display to user)
@@ -96,7 +96,7 @@ Success means:
 Drift detection is active. Any commit that changes:
   - locked config keys, or
   - locked file SHAs
-  will be rejected by pre-commit unless you /lab-fork or `lablock override`.
+  will be tagged as SCOPE-DRIFT and recorded as an alignment note. Use /lab-guard when you want to classify it as fork, override, continue-with-note, or revert.
 
 When done:
   /lab-exp-finalize --exp=<exp-id> --status=<done|killed|superseded>
@@ -115,7 +115,7 @@ Hooks will add the LabLock scope/tag prefix and `LabLock-Change` trailer.
 
 Tell the user clearly:
 
-> The training command has been printed but NOT executed by LabLock. Run it yourself when ready. While the run is in progress, normal commits work as usual—drift detection will catch any unintended changes to locked invariants.
+> The training command has been printed but NOT executed by LabLock. Run it yourself when ready. While the run is in progress, normal commits work as usual; drift detection records alignment warnings so you can decide whether they matter for the research target.
 
 ## Failure modes
 

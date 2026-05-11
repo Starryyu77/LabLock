@@ -13,7 +13,7 @@ bun "$LABLOCK_HOME/bin/lablock-append-index.ts" --commit="$COMMIT_HASH" --meta-f
 
 TAG=$(bun -e "console.log(JSON.parse(require('fs').readFileSync('$META_FILE','utf-8')).tag)")
 if [ "$TAG" = "SCOPE-DRIFT" ]; then
-  echo "Scope drift committed. Confirm /lab-fork or scope.lock update is accounted for."
+  echo "Scope drift committed as a research alignment note. Run /lab-guard when you want to classify it as fork, override, continue-with-note, or revert."
 fi
 
 EXP_ID=$(bun -e "console.log(JSON.parse(require('fs').readFileSync('$META_FILE','utf-8')).exp_id || '')")

@@ -1,4 +1,5 @@
 import { describe, expect, test } from 'bun:test';
+import { readFile } from 'node:fs/promises';
 import { join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -27,5 +28,14 @@ describe('skill lint', () => {
     expect(payload.status).toBe('ok');
     expect(payload.checked).toBeGreaterThanOrEqual(23);
     expect(payload.issues).toEqual([]);
+  });
+
+  test('implementation handoff mode has a coding-agent template', async () => {
+    const skill = await readFile(join(repoRoot, 'lab-handoff/SKILL.md'), 'utf8');
+    const template = await readFile(join(repoRoot, 'templates/handoff-implementation.md.tmpl'), 'utf8');
+    expect(skill).toContain('implementation');
+    expect(skill).toContain('coding agent');
+    expect(template).toContain('## Research objective to preserve');
+    expect(template).toContain('Do not add broad defensive gates');
   });
 });

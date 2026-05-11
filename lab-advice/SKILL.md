@@ -57,22 +57,23 @@ Do not run expensive scans. Do not modify files.
 - Vague research idea, unclear question, need falsifiable hypotheses: `/lab-plan`
 - Single experiment needs IV/DV/controls/metrics/kill criteria: `/lab-plan-exp`
 - Existing plan or hypothesis needs advisor/reviewer2/feasibility/novelty review: `/lab-review`
-- Need all four review perspectives and go/no-go dashboard: `/lab-autoplan`
+- Need all four review perspectives and an alignment dashboard: `/lab-autoplan`
 
 ### Experiment lifecycle
 
 - Create experiment directory, hypothesis, config, and `scope.lock`: `/lab-exp-init`
 - Experiment files are committed and user explicitly needs a Git experiment branch: `/lab-exp-start`
 - Start a run, verify scope, set current-exp, record run command: `/lab-exp-run`
-- Commit is blocked by SCOPE-DRIFT: `/lab-guard`
+- Commit produced a SCOPE-DRIFT warning: `/lab-guard`
 - Drift should become a new experiment baseline: `/lab-fork`
 - Experiment is done, killed, or superseded: `/lab-exp-finalize`
 - Failed/killed/superseded experiment needs lessons captured: `/lab-postmortem`
 - Done experiment should be promoted back to main cleanly: `/lab-cleanup-pr`
+- User wants another AI to write experiment code/scripts under the current research objective: `/lab-handoff --type=implementation`
 
 ### Debug and collaboration
 
-- Failure needs reproduce -> trace -> hypotheses -> test before fixes: `/lab-debug`
+- Failure needs research-aligned reproduce -> hypothesis -> minimal fix: `/lab-debug`
 - Context must be packaged for external AI/teammate: `/lab-handoff`
 
 ### Claims, formalism, and paper
@@ -87,7 +88,7 @@ Do not run expensive scans. Do not modify files.
 
 Return "No suitable LabLock skill" for tasks like:
 
-- General coding unrelated to LabLock experiment workflow.
+- General coding unrelated to LabLock experiment workflow. If coding is for a LabLock experiment, route to `/lab-handoff --type=implementation` to generate the prompt for the coding agent.
 - Asking for current weather, news, or web facts.
 - Generic package installation unrelated to LabLock.
 - Editing a normal document that is not LabLock planning/audit/paper workflow.

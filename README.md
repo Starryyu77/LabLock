@@ -1,25 +1,25 @@
 # LabLock
 
-LabLock 是一个面向科研代码仓库的工作流护栏工具。它用 `scope.lock`、Git hooks、CLI、AI skills 和审计报告，把“实验在测什么、哪些东西不能漂、哪些 claim 有证据”固定成文件，而不是只留在对话里。
+LabLock 是一个面向科研代码仓库的研究目标对齐工具。它用 `scope.lock`、Git hooks、CLI、AI skills 和审计报告，把“实验最初想达到什么、当前改动是否仍朝这个目标推进、哪些 claim 有证据”固定成文件，而不是只留在对话里。
 
 当前实现基于 Bun + TypeScript，面向 Claude Code / Codex 这类本地 coding agent 使用。
 
 ## 它解决什么问题
 
-科研仓库经常会出现几类失控：
+科研仓库经常会出现几类偏离：
 
-- 实验跑着跑着，baseline、config、dataloader、loss 被顺手改了，最后不知道结论到底来自哪个变量。
+- 实验跑着跑着，baseline、config、dataloader、loss 被顺手改了，最后不知道结论到底是否服务于最初目标。
 - paper 里写了 claim，但 evidence 分散在实验目录、commit、日志和聊天记录里。
 - 多个 AI / 人类一起改仓库时，当前关注的实验、fork、drift、postmortem 没有统一状态。
 - 成功实验 merge 回主线时，debug noise、临时脚本和真正要保留的改动混在一起。
 
 LabLock 的做法是：
 
-- 每个实验都有 `.lablock/locks/<exp>.scope.lock`，记录 config / file hash / probe 三层 invariant。
-- Git hooks 在 commit 前检查 scope drift，并要求通过 fork、decision 或 override 解释。
+- 每个实验都有 `.lablock/locks/<exp>.scope.lock`，记录研究目标、预期变量、config / file hash / probe 等实验 frame。
+- Git hooks 在 commit 前检查 scope drift，默认给出 warning、记录 meta/changelog，并建议用 `/lab-guard` 判断是否需要 fork、decision、override 或继续推进。
 - `changes.log`、commit trailer、change index 把每次改动连到 commit。
 - `claims.md`、`formalism.md`、`paper/`、`decisions/` 让写作和证据可审计。
-- `lab-*` skills 让 AI 按固定流程做计划、实验、debug、handoff、paper audit 和仓库更新。
+- `lab-*` skills 让 AI 围绕研究目标做计划、实验记录、debug、handoff、paper audit 和仓库更新，而不是把防御性检查当成研究主线。
 
 ## 安装
 
@@ -185,7 +185,7 @@ LabLock skills 分两类：
 | `/lab-plan` | 只有一个模糊研究想法 | 把想法拆成研究问题、隐藏前提、可证伪 hypothesis 和实现备选 | `plans/YYYY-MM-DD-topic.md` |
 | `/lab-plan-exp` | 准备做单个实验，但还没创建 scope.lock | 明确 independent variable、controls、metrics、预期结果、kill/success criteria | `plans/` 下的实验设计草案 |
 | `/lab-review` | 想审一个 plan 或 experiment design | 以 advisor / reviewer2 / feasibility / novelty 视角挑问题 | `reviews/YYYY-MM-DD-target-mode.md` |
-| `/lab-autoplan` | 想一次性做完整压力测试 | 顺序跑四种 review 视角并汇总 go/no-go | `reviews/YYYY-MM-DD-target-autoplan.md` |
+| `/lab-autoplan` | 想一次性做完整压力测试 | 顺序跑四种 review 视角并汇总 research alignment dashboard | `reviews/YYYY-MM-DD-target-autoplan.md` |
 
 ### 实验生命周期
 
@@ -205,7 +205,7 @@ LabLock skills 分两类：
 | Skill | 什么时候用 | 它做什么 | 主要输出 |
 |---|---|---|---|
 | `/lab-debug` | 训练、评估、hook、数据流出问题 | 先复现、追踪数据流、写 hypothesis，再限制修复尝试次数 | `debug/YYYY-MM-DD-topic.md` |
-| `/lab-handoff` | 要把上下文打包给 ChatGPT web 或其他 AI | 按 debug / method / results / design / writing 模板抽取上下文 | `handoffs/outgoing/YYYY-MM-DD-topic.md` |
+| `/lab-handoff` | 要把上下文或实验实现提示词打包给 ChatGPT web、coding agent 或队友 | 按 debug / method / results / design / writing / implementation 模板抽取上下文 | `handoffs/outgoing/YYYY-MM-DD-topic.md` |
 
 ### 形式化、claim 与论文
 
@@ -246,7 +246,7 @@ LabLock skills 分两类：
 2. 正常改代码和提交
 3. 如果 hook 报 drift，走 `/lab-guard`
 4. drift 是新方向，用 `/lab-fork`
-5. drift 是 lock 错了，用 `lablock override --exp=... --reason=...` 并补 decision
+5. drift 是 lock 错了，用 `lablock override --exp=... --reason=...`；只是探索性偏离时，用 `/lab-guard` 记录 continue-with-note
 
 ### 实验结束
 
@@ -365,17 +365,17 @@ lablock github-ruleset check --branch=paper/draft --strict --json
 当前版本的下一步不是继续扩展 GitHub protection，而是在真实科研仓库里试跑完整闭环：
 
 ```text
-lab-init -> exp-init -> exp-start -> drift -> override/fork -> finalize -> audit
+lab-init -> exp-init -> exp-run -> drift warning -> guard/fork/override/note -> finalize -> audit
 ```
 
-执行协议见 [`docs/dogfood.md`](docs/dogfood.md)。dogfood 期间重点记录 friction：哪些 hook 太烦、哪些 lock 字段难填、哪些 audit 输出没有用、哪一次 drift 被正确拦住。
+执行协议见 [`docs/dogfood.md`](docs/dogfood.md)。dogfood 期间重点记录 friction：哪些 warning 有用、哪些 lock 字段难填、哪些 audit 输出没有用、哪一次 drift 帮助我们重新对齐研究目标。
 
 ## 核心数据结构
 
 | 文件 | 作用 |
 |---|---|
 | `.lablock/config.yaml` | 项目配置、CI 模式、protected branch/tag、模块开关 |
-| `.lablock/locks/<exp>.scope.lock` | 实验 scope contract：config / files / probes invariant |
+| `.lablock/locks/<exp>.scope.lock` | 实验 research frame：目标、config / files / probes invariant |
 | `.lablock/changes/<exp>.changes.log` | 实验改动摘要 |
 | `.lablock/state/current-exp` | 当前关注实验，gitignored |
 | `.git/lablock-commit-meta.json` | hook 间传递 commit metadata，gitignored |
@@ -395,11 +395,11 @@ bun run typecheck
 当前测试覆盖：
 
 - unit tests：schema、frontmatter、lock、changes、classify、meta、change-index、ulid
-- integration tests：init -> exp-init -> exp-start -> drift block -> override/fork -> finalize -> postmortem -> drift audit
+- integration tests：init -> exp-init -> exp-run/current-exp -> drift warning -> guard/fork/note -> finalize -> postmortem -> drift audit
 - branch protection tests：protected branch/tag deletion、force-push 拒绝、真实 `pre-push` hook stdin 路径
 
 ## 状态
 
 当前版本：`0.1.0 beta-candidate`
 
-实现目标：LabLock v3 Phase 0 可运行骨架，进入 controlled dogfood。后续重点是用真实科研项目验证 `scope.lock -> drift -> fork/override -> finalize -> audit` 闭环，再补 probe templates 和 claim/paper parser。
+实现目标：LabLock v3 Phase 0 可运行骨架，进入 controlled dogfood。后续重点是用真实科研项目验证 `scope.lock -> drift warning -> guard/fork/override/note -> finalize -> audit` 闭环，再补 implementation handoff、probe templates 和 claim/paper parser。

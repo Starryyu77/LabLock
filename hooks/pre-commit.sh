@@ -46,20 +46,14 @@ if [ -n "$CURRENT_EXP" ]; then
   if [ "$VERIFY_STATUS" = "drifted" ]; then
     SUGGESTED_TAG="SCOPE-DRIFT"
     DRIFT_JSON=$(echo "$VERIFY_OUTPUT" | bun -e "const x=JSON.parse(require('fs').readFileSync(0,'utf-8')); console.log(JSON.stringify({config:x.layers.config||[],files:x.layers.files||[]}))")
-    ACCOUNTABLE=$(bun "$LABLOCK_HOME/bin/lablock-check-drift-accountability.ts" --exp="$CURRENT_EXP" --change-id="$CHANGE_ID")
-    if [ "$ACCOUNTABLE" != "ok" ]; then
-      cat <<EOF
-SCOPE-DRIFT detected but no accountability artifact staged.
+    cat <<EOF
+SCOPE-DRIFT warning for $CURRENT_EXP.
 
-Do one of:
-  (a) Stage a new experiment with frontmatter.forked_from=$CURRENT_EXP
-  (b) Stage a decision file in decisions/ explaining this drift
-  (c) Update .lablock/locks/$CURRENT_EXP.scope.lock and stage a decision
+This commit will continue. LabLock recorded the drift in commit metadata and the experiment changes log so research progress is not blocked by a local gate.
 
-Bypass locally with git commit --no-verify; CI can still reject protected branches.
+Recommended next step:
+  Run /lab-guard to decide whether this drift should become a fork, an override decision, a continue-with-note, or a revert.
 EOF
-      exit 1
-    fi
   fi
 fi
 

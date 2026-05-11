@@ -11,7 +11,7 @@ related-skills:
 
 You are auditing the paper drafts for claim coverage. Every sentence that asserts a fact about your method or results must trace back to evidence.
 
-This is the final gate before submission. Do not soft-pedal findings.
+This is the final evidence-alignment pass before submission. Do not soft-pedal findings, but keep the output focused on claim support and next action rather than process for its own sake.
 
 ## Pre-flight
 

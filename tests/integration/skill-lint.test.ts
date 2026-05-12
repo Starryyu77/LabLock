@@ -26,7 +26,7 @@ describe('skill lint', () => {
     const result = await run([process.execPath, join(repoRoot, 'bin/lablock-skill-lint.ts'), '--json'], repoRoot);
     const payload = JSON.parse(result.stdout);
     expect(payload.status).toBe('ok');
-    expect(payload.checked).toBeGreaterThanOrEqual(23);
+    expect(payload.checked).toBeGreaterThanOrEqual(24);
     expect(payload.issues).toEqual([]);
   });
 
@@ -37,5 +37,15 @@ describe('skill lint', () => {
     expect(skill).toContain('coding agent');
     expect(template).toContain('## Research objective to preserve');
     expect(template).toContain('Do not add broad defensive gates');
+  });
+
+  test('lab-taste is advisory and writes a research taste note', async () => {
+    const skill = await readFile(join(repoRoot, 'lab-taste/SKILL.md'), 'utf8');
+    expect(skill).toContain('科研品味');
+    expect(skill).toContain('Hamming lens');
+    expect(skill).toContain('Graham lens');
+    expect(skill).toContain('Bourdieu lens');
+    expect(skill).toContain('reviews/<date>-<topic>-taste.md');
+    expect(skill).toContain('not a gate');
   });
 });

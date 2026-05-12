@@ -27,6 +27,7 @@ LabLock skills 分两类：
 | 单个实验设计 | `/lab-plan-exp` |
 | 审计划/实验设计 | `/lab-review` |
 | 四种视角完整压力测试 | `/lab-autoplan` |
+| 科研品味/方向选择/故事潜力视角 | `/lab-taste` |
 | 创建实验目录和 `scope.lock` | `/lab-exp-init` |
 | 明确需要 Git 实验分支 | `/lab-exp-start` |
 | 启动训练/实验运行 | `/lab-exp-run` |
@@ -328,7 +329,7 @@ LabLock skills 分两类：
 **何时使用**：
 
 - 准备投入较多时间/GPU 前。
-- 需要 go/no-go 判断。
+- 需要完整 alignment / risk note。
 - 你想把多个 review 结果合成一个 dashboard。
 
 **不要何时使用**：
@@ -340,7 +341,7 @@ LabLock skills 分两类：
 
 - 生成四份 mode-specific review。
 - 汇总成一个 dashboard。
-- 给出 proceed / revise / no-go 建议。
+- 给出 ON-TRACK / NEEDS-FOCUS / HIGH-RISK alignment note 和下一步动作。
 
 **主要输出**：
 
@@ -351,6 +352,41 @@ LabLock skills 分两类：
 
 - 修改实验设计。
 - `/lab-exp-init`。
+
+### `/lab-taste`
+
+**作用**：给计划、实验、结果或方向选择加一个“科研品味”视角。它关注这个具体工作是否触碰了重要问题、能否抽象成共性结构、是否有更强的研究故事，以及异常结果究竟像 bug、噪声还是值得隔离的新现象。
+
+**何时使用**：
+
+- 你想问“这个问题值得研究吗？”。
+- 一个实验结果不符合预期，需要判断它是 bug、无意义波动，还是可能的新现象。
+- 一个 plan 看起来能跑，但不知道能不能讲出更大的研究故事。
+- 你想避免只追热门/高级范式，也想避免把实际问题过早贬成“只是工程”。
+
+**会做什么**：
+
+- 读取 `PROJECT.md`、目标 plan/experiment/result、相关 `scope.lock`、`claims.md` 和已有 `lit/` 记录。
+- 用 Hamming 的重要问题与勇气、Graham 的简洁/启发性/适用范围、Bourdieu 的社会品味批判，以及 vibe-coding 时代“操作便宜、判断稀缺”的视角做分析。
+- 输出重要问题、共性结构、right problem、story potential、anomaly lens、social taste check、courage check。
+- 给出 1-3 个更强 reframe 和一个下一步动作。
+
+**不要何时使用**：
+
+- 你需要严格 novelty 检查。用 `/lab-review --as=novelty`。
+- 你需要资源可行性判断。用 `/lab-review --as=feasibility`。
+- 你需要正式 claim/evidence 合成。用 `/lab-synthesize`。
+- 你想让系统替你做最终方向决定。`/lab-taste` 是视角，不是 gate。
+
+**主要输出**：
+
+- `reviews/YYYY-MM-DD-<topic>-taste.md`。
+
+**下一步**：
+
+- 如果 reframe 指向新实验，用 `/lab-plan-exp`。
+- 如果需要把多个结果串成 claim，用 `/lab-synthesize`。
+- 如果核心问题是 feasibility、novelty 或 reviewer 风险，用 `/lab-review`。
 
 ## 实验生命周期
 
@@ -917,7 +953,7 @@ LabLock skills 分两类：
 ### 新项目
 
 ```text
-/lab-init -> /lab-plan -> /lab-plan-exp -> /lab-exp-init -> /lab-exp-run
+/lab-init -> /lab-plan -> optional /lab-taste -> /lab-plan-exp -> /lab-exp-init -> /lab-exp-run
 ```
 
 `/lab-exp-start` is optional when a Git branch is needed for collaboration, remote CI, or archival history isolation.
@@ -931,7 +967,7 @@ LabLock skills 分两类：
 ### 实验 drift
 
 ```text
-pre-commit blocks -> /lab-guard -> /lab-fork OR lablock override OR revert
+pre-commit warns -> /lab-guard -> /lab-fork OR lablock override OR continue-with-note OR revert
 ```
 
 ### 成功实验进入 main
@@ -945,6 +981,8 @@ pre-commit blocks -> /lab-guard -> /lab-fork OR lablock override OR revert
 ```text
 /lab-exp-finalize --status=killed -> /lab-postmortem -> /lab-synthesize
 ```
+
+When a surprising result may be more than a bug, insert `/lab-taste` before deciding the next experiment.
 
 ### 写 paper
 

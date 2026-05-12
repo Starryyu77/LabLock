@@ -186,6 +186,7 @@ LabLock skills 分两类：
 | `/lab-plan-exp` | 准备做单个实验，但还没创建 scope.lock | 明确 independent variable、controls、metrics、预期结果、kill/success criteria | `plans/` 下的实验设计草案 |
 | `/lab-review` | 想审一个 plan 或 experiment design | 以 advisor / reviewer2 / feasibility / novelty 视角挑问题 | `reviews/YYYY-MM-DD-target-mode.md` |
 | `/lab-autoplan` | 想一次性做完整压力测试 | 顺序跑四种 review 视角并汇总 research alignment dashboard | `reviews/YYYY-MM-DD-target-autoplan.md` |
+| `/lab-taste` | 想从“科研品味/方向选择/故事潜力”角度看计划、实验或异常结果 | 用 Hamming、Graham、Bourdieu 和 vibe-coding 时代的判断视角做 advisory note，不做 gate | `reviews/YYYY-MM-DD-topic-taste.md` |
 
 ### 实验生命周期
 
@@ -194,7 +195,7 @@ LabLock skills 分两类：
 | `/lab-exp-init` | 新实验、ablation 或新 baseline 开始前 | 分配 `exp-NNN`，创建 hypothesis、config、scope.lock、results | `experiments/<exp>-<shortname>/`、`.lablock/locks/<exp>.scope.lock` |
 | `/lab-exp-start` | 可选：明确需要 Git 历史隔离/协作/远端 CI 时 | 要求 clean tree，从 base 创建 experiment branch，设置 current-exp，可选 push；实验主体仍是 folder + lock | optional `exp/<exp>-<shortname>` branch |
 | `/lab-exp-run` | 准备启动训练或实验命令 | scope pre-flight，设置 `.lablock/state/current-exp`，记录 run 信息 | `infra/gpu/runs.md` 更新和 canonical command |
-| `/lab-guard` | pre-commit 报 SCOPE-DRIFT | 展示 drift，要求选择 fork、update lock + decision、或 revert | accountability artifact 或中止 commit |
+| `/lab-guard` | pre-commit 报 SCOPE-DRIFT | 展示 drift 如何影响研究目标，并给出 fork、override、continue-with-note、revert 路径 | accountability artifact 或后续动作建议 |
 | `/lab-fork` | 当前实验变量漂移，应该成为新实验 | 创建新 `exp-NNN`，设置 `forked_from`，复制/更新 lock，可标记原实验 superseded | 新 experiment dir、new scope.lock、decision |
 | `/lab-exp-finalize` | 实验结束、失败、killed 或 superseded | 更新 status、打 final tag、清 current-exp；成功走 cleanup PR，失败走 postmortem | final tag、frontmatter 更新 |
 | `/lab-cleanup-pr` | 成功实验要 merge 回 main | 分类 diff，保留 formalism/claims/decision，排除 debug noise 和临时实验脚本，创建 PR | cleanup branch、draft PR |
@@ -225,9 +226,10 @@ LabLock skills 分两类：
 
 1. `/lab-init`
 2. `/lab-plan`
-3. `/lab-plan-exp`
-4. `/lab-exp-init`
-5. `/lab-exp-run`
+3. 可选：`/lab-taste` 检查问题重要性、共性结构和故事潜力
+4. `/lab-plan-exp`
+5. `/lab-exp-init`
+6. `/lab-exp-run`
 
 需要 Git 历史隔离、远端 CI、多人协作或归档历史时，再插入 `/lab-exp-start`。
 
@@ -254,6 +256,7 @@ LabLock skills 分两类：
 2. 成功：`/lab-cleanup-pr`
 3. 失败或 killed：`/lab-postmortem`
 4. 多个实验后：`/lab-synthesize`
+5. 当结果或方向需要重新判断价值时：`/lab-taste`
 
 ### 写 paper
 

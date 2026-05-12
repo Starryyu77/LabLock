@@ -58,6 +58,7 @@ Do not run expensive scans. Do not modify files.
 - Single experiment needs IV/DV/controls/metrics/kill criteria: `/lab-plan-exp`
 - Existing plan or hypothesis needs advisor/reviewer2/feasibility/novelty review: `/lab-review`
 - Need all four review perspectives and an alignment dashboard: `/lab-autoplan`
+- Need a research taste lens for direction choice, story potential, common-problem abstraction, anomaly meaning, or "科研品味": `/lab-taste`
 
 ### Experiment lifecycle
 

@@ -20,6 +20,7 @@ For the full explanation of every skill, see `docs/skills-reference.md`.
 - One experiment needs concrete variables, controls, metrics, and criteria: `/lab-plan-exp`
 - Existing plan needs pressure test: `/lab-review`
 - Existing plan needs all review modes at once: `/lab-autoplan`
+- Research direction, story potential, common-problem abstraction, or anomaly meaning needs a taste lens: `/lab-taste`
 
 ## Experiment Lifecycle
 
@@ -41,6 +42,7 @@ For the full explanation of every skill, see `docs/skills-reference.md`.
 ## Claims, Formalism, Paper
 
 - Multiple results need claim-level interpretation: `/lab-synthesize`
+- A result or direction needs "is this meaningful or just a local fact?" interpretation: `/lab-taste`
 - Math, loss, or algorithm definition changed: `/lab-formalism-update`
 - Paper directory should be bootstrapped: `/lab-paper-init`
 - Draft a paper section from supported claims: `/lab-paper-write`

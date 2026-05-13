@@ -51,6 +51,10 @@ afterEach(async () => {
 describe('LabLock E2E lifecycle', () => {
   test('init, drift warning, fork, and drift audit', async () => {
     await run([process.execPath, lablock, 'init-project', '--name', 'E2E', '--modules', 'gpu,data,lit', '--ci-mode', 'warn-only'], cwd);
+    const namingConfig = yaml.load(await readFile(join(cwd, '.lablock/naming.yaml'), 'utf8')) as any;
+    expect(namingConfig.profile).toBe('paper-aligned');
+    expect(await readFile(join(cwd, '.lablock/variables.yaml'), 'utf8')).toContain('variables: []');
+    expect(await readFile(join(cwd, '.lablock/matrices.yaml'), 'utf8')).toContain('matrices: []');
     await writeFile(join(cwd, 'src-model.txt'), 'base\n');
     await git(cwd, ['add', '.']);
     await git(cwd, ['commit', '-m', 'init']);
@@ -66,6 +70,16 @@ describe('LabLock E2E lifecycle', () => {
       'optimizer.lr=0.001,seed=1',
       '--control-modified',
       'baseline config',
+      '--matrix-id',
+      'mat-001',
+      '--variable-id',
+      'var-001',
+      '--canonical-variable',
+      'optimizer_lr',
+      '--variant-value',
+      '0.001',
+      '--paper-label',
+      'Baseline learning rate',
       '--file-invariant',
       'src-model.txt:base model must stay fixed',
       '--kill',
@@ -75,6 +89,11 @@ describe('LabLock E2E lifecycle', () => {
       '--stage',
     ], cwd);
     await git(cwd, ['commit', '-m', 'create baseline']);
+    const lock = yaml.load(await readFile(join(cwd, '.lablock/locks/exp-001.scope.lock'), 'utf8')) as any;
+    expect(lock.naming.matrix_id).toBe('mat-001');
+    expect(lock.naming.canonical_variable).toBe('optimizer_lr');
+    const hypothesis = yaml.load((await readFile(join(cwd, 'experiments/exp-001-baseline/hypothesis.md'), 'utf8')).split('---')[1]) as any;
+    expect(hypothesis.naming.paper_label).toBe('Baseline learning rate');
     const matrix = await readFile(join(cwd, 'experiments/matrix.md'), 'utf8');
     expect(matrix).toContain('exp-001');
     expect(matrix).not.toContain('No experiments yet');

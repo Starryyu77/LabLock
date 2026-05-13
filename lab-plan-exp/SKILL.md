@@ -36,7 +36,62 @@ Acceptable IVs:
 - Changing a hyperparameter (single value)
 - Switching dataset
 
-## Step 2: Controlled Variables And Planned Bundle
+## Step 2: Variable naming
+
+Read `.lablock/naming.yaml` and `.lablock/variables.yaml` if they exist.
+
+Ask:
+
+1. "Do you already have a preferred variable name for this intervention?"
+2. "Is this variable already in `.lablock/variables.yaml`, or should we propose a new canonical name?"
+
+If the user has no preference, propose 2-3 names:
+
+- a code-facing `canonical_name` in `snake_case`, e.g. `qkv_projection_type`
+- a short experiment-name token, e.g. `qkvproj`
+- a paper-facing label, e.g. `QKV projection variant`
+
+Recommend the name that will survive paper writing. Avoid overloading broad names like `method`, `model`, `loss`, or `baseline` when a sharper axis is available.
+
+If using the Paper-Aligned or Matrix-First profile, add a suggested registry entry:
+
+```yaml
+- var_id: var-XXX
+  canonical_name: <snake_case>
+  paper_label: <human label>
+  code_keys:
+    - <config-or-code-key>
+  type: categorical | numeric | boolean | text
+  role: independent_variable
+  allowed_values:
+    - <baseline>
+    - <new variant>
+```
+
+Do not edit the registry in this skill unless the user explicitly asks. Include the proposed YAML in the plan.
+
+## Step 3: Matrix naming
+
+Read `.lablock/matrices.yaml` if it exists.
+
+Ask whether this experiment belongs to:
+
+- an existing matrix
+- a new matrix
+- no matrix yet
+
+If new, propose 2-3 matrix slugs. Prefer `topic-primary-axis-purpose`, e.g. `qkv-projection-ablation`, `lr-stability-sweep`, `dataset-transfer-matrix`.
+
+For the recommended matrix, capture:
+
+- `matrix_id` placeholder, e.g. `mat-XXX`
+- `slug`
+- research question
+- primary variable
+- controlled axes
+- likely paper target, e.g. `Table 2` or `Ablation table`
+
+## Step 4: Controlled Variables And Planned Bundle
 
 Walk through every variable in the parent experiment's config. For each:
 
@@ -45,7 +100,7 @@ Walk through every variable in the parent experiment's config. For each:
 
 Be clear, not defensive. The point is to keep interpretation tied to the original research target.
 
-## Step 3: Evaluation metric
+## Step 5: Evaluation metric
 
 Ask:
 
@@ -55,7 +110,7 @@ Ask:
 
 Reject metrics that have no shared definition with the baseline. ("Custom score" without a paper reference is a red flag.)
 
-## Step 4: Predicted outcomes
+## Step 6: Predicted outcomes
 
 Ask the user to predict, **before running**:
 
@@ -65,7 +120,7 @@ Ask the user to predict, **before running**:
 
 This is core to good experimental hygiene—pre-registered predictions reduce post-hoc rationalization.
 
-## Step 5: Kill criteria and budget
+## Step 7: Kill criteria and budget
 
 Ask:
 
@@ -76,7 +131,7 @@ Ask:
 
 These map to the `kill_criteria` array in scope.lock. Give specific numbers.
 
-## Step 6: Success criteria
+## Step 8: Success criteria
 
 Tied to Step 4 predictions:
 
@@ -86,7 +141,7 @@ Tied to Step 4 predictions:
 
 These map to `success_criteria` in scope.lock.
 
-## Step 7: Probes (if applicable)
+## Step 9: Probes (if applicable)
 
 Suggest contract tests for things that should NOT change. If the user's IV is "add contrastive loss", possible probes:
 
@@ -95,7 +150,7 @@ Suggest contract tests for things that should NOT change. If the user's IV is "a
 
 If the user has no probes in mind, that's fine—Layer 1 + 2 in scope.lock will still catch most drift.
 
-## Step 8: Write the draft
+## Step 10: Write the draft
 
 Save to:
 
@@ -123,6 +178,24 @@ target_exp_id: (will be assigned at /lab-exp-init)
 
 ## Planned bundle (if any)
 - <additional changes required to make the intervention meaningful>
+
+## Naming
+- Suggested shortname: <shortname>
+- Variable ID: <var-XXX or existing var-id>
+- Canonical variable: <snake_case>
+- Variant value: <value>
+- Paper label: <label>
+- Matrix ID: <mat-XXX or existing mat-id>
+- Matrix slug: <slug>
+
+## Proposed registry delta
+\`\`\`yaml
+# .lablock/variables.yaml
+...
+
+# .lablock/matrices.yaml
+...
+\`\`\`
 
 ## Controlled variables
 - key=value
@@ -154,6 +227,11 @@ lablock exp-init <shortname> \\
   --hypothesis="..." \\
   --config="<csv>" \\
   --control-modified="<csv>" \\
+  --matrix-id="<mat-id>" \\
+  --variable-id="<var-id>" \\
+  --canonical-variable="<snake_case>" \\
+  --variant-value="<value>" \\
+  --paper-label="<label>" \\
   --file-invariant="<csv>" \\
   --kill="<csv>" \\
   --success="<csv>" \\
@@ -163,7 +241,7 @@ lablock exp-init <shortname> \\
 
 The pre-rendered CLI command is the bridge to `/lab-exp-init`—the user can copy-paste and run.
 
-## Step 9: Suggest review
+## Step 11: Suggest review
 
 Tell the user:
 

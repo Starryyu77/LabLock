@@ -7,7 +7,7 @@ import { readFrontmatter } from './frontmatter.ts';
 import { atomicWrite, pathExists, readTextIfExists } from './fs-util.ts';
 import { listLocks } from './lock.ts';
 import { PATHS } from './paths.ts';
-import type { ExperimentFrontmatter, ScopeLock } from './types.ts';
+import type { ExperimentFrontmatter, ExperimentNamingRef, ScopeLock } from './types.ts';
 
 export interface DashboardExperiment {
   id: string;
@@ -38,6 +38,7 @@ export interface DashboardExperiment {
     removed: string[];
     modified: string[];
   };
+  naming: ExperimentNamingRef | null;
   config: Array<{ key: string; value: unknown }>;
   children: string[];
   next_subexperiments: string[];
@@ -205,6 +206,7 @@ export async function collectDashboardData(): Promise<DashboardData> {
       removed: whatChanged.filter((line) => line.toLowerCase().startsWith('removed:')).map((line) => line.replace(/^removed:\s*/i, '')),
       modified: whatChanged.filter((line) => line.toLowerCase().startsWith('modified:')).map((line) => line.replace(/^modified:\s*/i, '')),
     };
+    const naming = lock?.naming ?? fm.naming ?? null;
 
     experiments.push({
       id,
@@ -235,6 +237,7 @@ export async function collectDashboardData(): Promise<DashboardData> {
         removed: controlled.removed ?? [],
         modified: controlled.modified ?? [],
       },
+      naming,
       config: await readConfigRows(configPath),
       children: [],
       next_subexperiments: explicitNext,
@@ -395,6 +398,15 @@ function experimentMap(experiments: DashboardExperiment[]): string {
 }
 
 function detailsPanel(experiment: DashboardExperiment, outDir: string): string {
+  const naming = experiment.naming
+    ? [
+      experiment.naming.matrix_id ? `Matrix: ${experiment.naming.matrix_id}` : null,
+      experiment.naming.variable_id ? `Variable ID: ${experiment.naming.variable_id}` : null,
+      experiment.naming.canonical_variable ? `Canonical variable: ${experiment.naming.canonical_variable}` : null,
+      experiment.naming.variant_value ? `Variant value: ${experiment.naming.variant_value}` : null,
+      experiment.naming.paper_label ? `Paper label: ${experiment.naming.paper_label}` : null,
+    ].filter((item): item is string => Boolean(item))
+    : [];
   return [
     `<section class="detail-panel" data-exp-detail="${escapeAttr(experiment.id)}">`,
     '<div class="detail-title">',
@@ -415,6 +427,7 @@ function detailsPanel(experiment: DashboardExperiment, outDir: string): string {
       ...experiment.controlled_changes.removed.map((item) => `Removed: ${item}`),
       ...experiment.controlled_changes.modified.map((item) => `Modified: ${item}`),
     ])}</section>`,
+    `<section><h3>Naming</h3>${listItems(naming)}</section>`,
     `<section><h3>Success Criteria</h3>${listItems(experiment.planning.success_criteria)}</section>`,
     `<section><h3>Kill Criteria</h3>${listItems(experiment.planning.kill_criteria)}</section>`,
     `<section><h3>Config</h3>${configRows(experiment.config)}</section>`,
@@ -812,7 +825,8 @@ function renderDashboardHtml(data: DashboardData, outDir: string): string {
       const status = statusFilter.value;
       cards.forEach((card) => {
         const item = data.experiments.find((experiment) => experiment.id === card.dataset.exp);
-        const haystack = [item.id, item.shortname, item.status, item.hypothesis, item.parent, item.forked_from].filter(Boolean).join(' ').toLowerCase();
+        const naming = item.naming ? Object.values(item.naming).filter(Boolean).join(' ') : '';
+        const haystack = [item.id, item.shortname, item.status, item.hypothesis, item.parent, item.forked_from, naming].filter(Boolean).join(' ').toLowerCase();
         const visible = (!query || haystack.includes(query)) && (status === 'all' || item.status === status);
         card.classList.toggle('hidden', !visible);
       });

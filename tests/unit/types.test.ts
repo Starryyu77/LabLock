@@ -1,5 +1,11 @@
 import { describe, expect, test } from 'bun:test';
-import { ExperimentFrontmatterSchema, ScopeLockSchema } from '../../lib/types.ts';
+import {
+  ExperimentFrontmatterSchema,
+  MatrixRegistrySchema,
+  NamingConfigSchema,
+  ScopeLockSchema,
+  VariableRegistrySchema,
+} from '../../lib/types.ts';
 
 describe('types', () => {
   test('valid experiment frontmatter passes', () => {
@@ -52,5 +58,45 @@ describe('types', () => {
       kill_criteria: [],
       success_criteria: ['good'],
     })).toThrow();
+  });
+
+  test('naming config and registries validate canonical ids', () => {
+    expect(NamingConfigSchema.parse({
+      version: 1,
+      profile: 'paper-aligned',
+      canonical_variable_style: 'snake_case',
+      experiment_shortname_pattern: 'exp-NNN-<axis>-<variant>',
+      matrix_slug_pattern: '<topic>-<axis>-ablation',
+      require_variable_registry: true,
+      require_matrix_registry: true,
+      paper_label_required: false,
+      reserved_suffixes: ['baseline'],
+    }).profile).toBe('paper-aligned');
+
+    expect(VariableRegistrySchema.parse({
+      version: 1,
+      variables: [{
+        var_id: 'var-001',
+        canonical_name: 'qkv_projection_type',
+        paper_label: 'QKV projection variant',
+        code_keys: ['model.attn.qkv_projector'],
+        type: 'categorical',
+        role: 'independent_variable',
+        allowed_values: ['baseline', 'elm_qkv'],
+      }],
+    }).variables[0].var_id).toBe('var-001');
+
+    expect(MatrixRegistrySchema.parse({
+      version: 1,
+      matrices: [{
+        matrix_id: 'mat-001',
+        slug: 'qkv-projection-ablation',
+        research_question: 'Does the QKV projection form explain the observed gain?',
+        primary_variable: 'var-001',
+        controlled_axes: ['dataset', 'model_size'],
+        experiments: ['exp-001'],
+        paper_target: 'Table 2',
+      }],
+    }).matrices[0].matrix_id).toBe('mat-001');
   });
 });

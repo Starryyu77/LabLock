@@ -28,12 +28,13 @@ Read:
 - `experiments/<each>/results.md` (free-form, but parse for tables and metric numbers)
 - `experiments/<each>/postmortem.md` if exists (failed/killed exps still inform)
 - `.lablock/locks/<each>.scope.lock` (for invariants and IV)
+- `.lablock/variables.yaml` and `.lablock/matrices.yaml` if present, so synthesis can group evidence by canonical variables and experiment matrices
 - Current `claims.md`
 - `formalism.md` for current formalism version
 
 ## Step 1: Tabulate
 
-Build a table: experiment × metric. Columns are key metrics (the most-cited primary metric across exps), rows are exps.
+Build a table: experiment × metric. Columns are key metrics (the most-cited primary metric across exps), rows are exps. If matrix metadata exists, group rows by `matrix_id` and use canonical variable names for axes. Do not rely on shortnames alone when registry metadata is available.
 
 ```markdown
 | Exp | Status | Hypothesis | Metric A | Metric B | Notes |

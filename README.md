@@ -98,12 +98,13 @@ curl -fsSL https://raw.githubusercontent.com/Starryyu77/LabLock/main/install.sh 
 在目标科研仓库中运行：
 
 ```bash
-lablock init-project --name="My Project" --modules=gpu,data,lit --ci-mode=warn-only
+lablock init-project --name="My Project" --modules=gpu,data,lit --ci-mode=warn-only --naming-profile=paper-aligned
 ```
 
 它会创建：
 
 - `.lablock/` 配置、locks、changes、state
+- `.lablock/naming.yaml`、`.lablock/variables.yaml`、`.lablock/matrices.yaml`
 - `PROJECT.md`、`formalism.md`、`claims.md`、`INDEX.md`、`MAP.md`
 - `experiments/`、`decisions/`、`reviews/`、`handoffs/`、`paper/`
 - Git hooks
@@ -171,7 +172,7 @@ LabLock skills 分两类：
 | Skill | 什么时候用 | 它做什么 | 主要输出 |
 |---|---|---|---|
 | `/lab-advice` | 不知道当前任务该用哪个 LabLock skill | 读用户意图，推荐最合适的 `/lab-*`，或明确说没有合适 skill | 推荐 skill、理由、可复制调用语句 |
-| `/lab-init` | 新科研仓库第一次接入 LabLock | 初始化目录、配置、hooks、CLAUDE/AGENTS 注入和 CI | `.lablock/`、项目骨架、hooks |
+| `/lab-init` | 新科研仓库第一次接入 LabLock | 初始化目录、配置、命名策略、hooks、CLAUDE/AGENTS 注入和 CI | `.lablock/`、naming/variable/matrix registries、项目骨架、hooks |
 | `/lab-migrate` | 已有科研仓库想非破坏性接入 LabLock | 先盘点旧脚本/plan/实验/结果，写迁移计划；经确认用 warn-only 初始化，并把选中的旧计划/旧实验导入为 LabLock mirror nodes | `reviews/migration-YYYY-MM-DD.md`、`experiments/exp-*`、`.lablock/locks/*.scope.lock` |
 | `/lab-dashboard` | 想打开、刷新或填充实验看板 | 运行 `lablock dashboard`；新实验用 `exp-init`，旧实验/旧 run 用 `/lab-migrate` 或 `migrate-node` 导入后刷新 | `.lablock/dashboard/index.html`、实验状态摘要 |
 | `/lab-update` | 任意项目里想一键升级本机 LabLock | 运行 `lablock update`：从 GitHub fast-forward 更新 canonical source，重装依赖，刷新 Claude/Codex skills | 更新后的 source、CLI、skill 安装路径 |
@@ -183,7 +184,7 @@ LabLock skills 分两类：
 | Skill | 什么时候用 | 它做什么 | 主要输出 |
 |---|---|---|---|
 | `/lab-plan` | 只有一个模糊研究想法 | 把想法拆成研究问题、隐藏前提、可证伪 hypothesis 和实现备选 | `plans/YYYY-MM-DD-topic.md` |
-| `/lab-plan-exp` | 准备做单个实验，但还没创建 scope.lock | 明确 independent variable、controls、metrics、预期结果、kill/success criteria | `plans/` 下的实验设计草案 |
+| `/lab-plan-exp` | 准备做单个实验，但还没创建 scope.lock | 明确变量命名、matrix 归属、independent variable、controls、metrics、预期结果、kill/success criteria | `plans/` 下的实验设计草案 |
 | `/lab-review` | 想审一个 plan 或 experiment design | 以 advisor / reviewer2 / feasibility / novelty 视角挑问题 | `reviews/YYYY-MM-DD-target-mode.md` |
 | `/lab-autoplan` | 想一次性做完整压力测试 | 顺序跑四种 review 视角并汇总 research alignment dashboard | `reviews/YYYY-MM-DD-target-autoplan.md` |
 | `/lab-taste` | 想从“科研品味/方向选择/故事潜力”角度看计划、实验或异常结果 | 用 Hamming、Graham、Bourdieu 和 vibe-coding 时代的判断视角做 advisory note，不做 gate | `reviews/YYYY-MM-DD-topic-taste.md` |
@@ -192,7 +193,7 @@ LabLock skills 分两类：
 
 | Skill | 什么时候用 | 它做什么 | 主要输出 |
 |---|---|---|---|
-| `/lab-exp-init` | 新实验、ablation 或新 baseline 开始前 | 分配 `exp-NNN`，创建 hypothesis、config、scope.lock、results | `experiments/<exp>-<shortname>/`、`.lablock/locks/<exp>.scope.lock` |
+| `/lab-exp-init` | 新实验、ablation 或新 baseline 开始前 | 分配 `exp-NNN`，绑定变量/matrix 命名，创建 hypothesis、config、scope.lock、results | `experiments/<exp>-<shortname>/`、`.lablock/locks/<exp>.scope.lock` |
 | `/lab-exp-start` | 可选：明确需要 Git 历史隔离/协作/远端 CI 时 | 要求 clean tree，从 base 创建 experiment branch，设置 current-exp，可选 push；实验主体仍是 folder + lock | optional `exp/<exp>-<shortname>` branch |
 | `/lab-exp-run` | 准备启动训练或实验命令 | scope pre-flight，设置 `.lablock/state/current-exp`，记录 run 信息 | `infra/gpu/runs.md` 更新和 canonical command |
 | `/lab-guard` | pre-commit 报 SCOPE-DRIFT | 展示 drift 如何影响研究目标，并给出 fork、override、continue-with-note、revert 路径 | accountability artifact 或后续动作建议 |
@@ -378,6 +379,9 @@ lab-init -> exp-init -> exp-run -> drift warning -> guard/fork/override/note -> 
 | 文件 | 作用 |
 |---|---|
 | `.lablock/config.yaml` | 项目配置、CI 模式、protected branch/tag、模块开关 |
+| `.lablock/naming.yaml` | 项目级命名 profile：minimal / paper-aligned / matrix-first |
+| `.lablock/variables.yaml` | canonical variable registry：变量 ID、代码 key、paper label、允许取值 |
+| `.lablock/matrices.yaml` | experiment matrix registry：矩阵 ID、主变量、受控轴、实验列表、paper target |
 | `.lablock/locks/<exp>.scope.lock` | 实验 research frame：目标、config / files / probes invariant |
 | `.lablock/changes/<exp>.changes.log` | 实验改动摘要 |
 | `.lablock/state/current-exp` | 当前关注实验，gitignored |

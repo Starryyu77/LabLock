@@ -103,6 +103,7 @@ LabLock skills 分两类：
 **会做什么**：
 
 - 创建 `.lablock/` 配置、locks、changes、state。
+- 创建 `.lablock/naming.yaml`、`.lablock/variables.yaml`、`.lablock/matrices.yaml`，并记录 minimal / paper-aligned / matrix-first 命名 profile。
 - 创建 `PROJECT.md`、`formalism.md`、`claims.md`、`INDEX.md`、`MAP.md`。
 - 创建 `experiments/`、`decisions/`、`reviews/`、`handoffs/`、`paper/` 等目录。
 - 安装 git hooks。
@@ -279,6 +280,8 @@ LabLock skills 分两类：
 **会做什么**：
 
 - 确定 IV、DV、control variables。
+- 询问用户是否已有变量命名；没有则提出 canonical variable、short token 和 paper label 方案。
+- 选择或提出实验 matrix，并给出 registry delta。
 - 确定 baseline 和 evaluation metrics。
 - 写 H0/H1 下的预期结果。
 - 设定 compute/time budget、kill criteria、success criteria。
@@ -409,6 +412,7 @@ LabLock skills 分两类：
 **会做什么**：
 
 - 分配下一个 `exp-NNN`。
+- 根据 `.lablock/naming.yaml` 绑定 `matrix_id`、`variable_id`、`canonical_variable`、`variant_value`、`paper_label`。
 - 创建 `experiments/<exp>-<shortname>/hypothesis.md`。
 - 创建 `.lablock/locks/<exp>.scope.lock`。
 - 捕获 hypothesis、controlled changes、config invariants、file invariants、optional probes、kill/success criteria。
@@ -417,6 +421,7 @@ LabLock skills 分两类：
 
 - `experiments/<exp>-<shortname>/`。
 - `.lablock/locks/<exp>.scope.lock`。
+- hypothesis frontmatter 和 scope.lock 中的 `naming` 引用。
 
 **下一步**：
 

@@ -101,7 +101,7 @@ git status --short --branch
 如果这是新项目，可以对 AI 说：
 
 ```text
-请使用 /lab-init 初始化这个科研仓库。项目名是 <项目名>，方向是 <研究方向>，先用 warn-only CI，不要启用 enforce。
+请使用 /lab-init 初始化这个科研仓库。项目名是 <项目名>，方向是 <研究方向>，先用 warn-only CI，不要启用 enforce。命名策略选择 B: paper-aligned registry，除非我另说。
 ```
 
 也可以直接跑 CLI：
@@ -111,6 +111,7 @@ lablock init-project \
   --name="My Research Project" \
   --modules=gpu,data,lit \
   --ci-mode=warn-only \
+  --naming-profile=paper-aligned \
   --goal="Study whether contrastive loss improves representation quality" \
   --hypothesis="Adding contrastive loss improves downstream classification accuracy."
 ```
@@ -119,6 +120,9 @@ lablock init-project \
 
 ```text
 .lablock/
+.lablock/naming.yaml
+.lablock/variables.yaml
+.lablock/matrices.yaml
 PROJECT.md
 formalism.md
 claims.md

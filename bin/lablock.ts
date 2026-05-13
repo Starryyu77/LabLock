@@ -5,7 +5,17 @@ import { homedir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import yaml from 'js-yaml';
-import { DEFAULT_PROJECT_CONFIG, type ScopeLock } from '../lib/types.ts';
+import {
+  DEFAULT_PROJECT_CONFIG,
+  CanonicalVariableNameSchema,
+  ExperimentNamingRefSchema,
+  MatrixIdSchema,
+  NamingProfileValueSchema,
+  VariableIdSchema,
+  type ExperimentNamingRef,
+  type NamingProfileValue,
+  type ScopeLock,
+} from '../lib/types.ts';
 import { PATHS } from '../lib/paths.ts';
 import { readProjectConfig, setProjectConfigPath, getProjectConfigPath, writeProjectConfig } from '../lib/config.ts';
 import { renderTemplate, renderToFile } from '../lib/templates.ts';
@@ -121,6 +131,11 @@ async function createExperiment(opts: {
   forkedFrom?: string | null;
   forkReason?: 'scope-drift' | 'parallel-exploration' | 'manual' | null;
   driftCommit?: string | null;
+  matrixId?: string;
+  variableId?: string;
+  canonicalVariable?: string;
+  variantValue?: string;
+  paperLabel?: string;
 }): Promise<string> {
   const shortname = slugify(opts.shortname);
   const expId = opts.id ?? await nextExpId();
@@ -137,6 +152,7 @@ async function createExperiment(opts: {
     removed: parseCsv(opts.controlRemoved),
     modified: parseCsv(opts.controlModified ?? shortname),
   };
+  const naming = buildNamingRef(opts);
   const kill = parseCsv(opts.kill ?? 'metric regresses beyond threshold');
   const success = parseCsv(opts.success ?? 'hypothesis is supported by the chosen metric');
   const expDir = `${PATHS.EXPERIMENTS}/${expId}-${shortname}`;
@@ -156,6 +172,7 @@ async function createExperiment(opts: {
       probes: [],
     },
     controlled_changes: controlledChanges,
+    naming,
     kill_criteria: kill,
     success_criteria: success,
   };
@@ -170,6 +187,7 @@ async function createExperiment(opts: {
     forked_from: opts.forkedFrom ?? null,
     fork_reason: opts.forkReason ?? null,
     drift_commit: opts.driftCommit ?? null,
+    ...(naming ? { naming } : {}),
   }, [
     `# ${expId}: ${shortname}`,
     '',
@@ -182,6 +200,16 @@ async function createExperiment(opts: {
     ...controlledChanges.added.map((v) => `- Added: ${v}`),
     ...controlledChanges.removed.map((v) => `- Removed: ${v}`),
     ...controlledChanges.modified.map((v) => `- Modified: ${v}`),
+    ...(naming ? [
+      '',
+      '## Naming',
+      '',
+      ...(naming.matrix_id ? [`- Matrix: ${naming.matrix_id}`] : []),
+      ...(naming.variable_id ? [`- Variable ID: ${naming.variable_id}`] : []),
+      ...(naming.canonical_variable ? [`- Canonical variable: ${naming.canonical_variable}`] : []),
+      ...(naming.variant_value ? [`- Variant value: ${naming.variant_value}`] : []),
+      ...(naming.paper_label ? [`- Paper label: ${naming.paper_label}`] : []),
+    ] : []),
     '',
     '## Success criteria',
     '',
@@ -198,6 +226,58 @@ async function createExperiment(opts: {
     await rawGit(['add', expDir, `.lablock/locks/${expId}.scope.lock`]);
   }
   return expId;
+}
+
+function parseNamingProfile(raw: string | undefined): NamingProfileValue {
+  return NamingProfileValueSchema.parse(raw ?? 'paper-aligned');
+}
+
+function namingProfileContext(profile: NamingProfileValue): Record<string, unknown> {
+  if (profile === 'minimal') {
+    return {
+      naming_profile: 'minimal',
+      experiment_shortname_pattern: 'exp-NNN-<shortname>',
+      matrix_slug_pattern: '<topic>-matrix',
+      require_variable_registry: false,
+      require_matrix_registry: false,
+      paper_label_required: false,
+    };
+  }
+  if (profile === 'matrix-first') {
+    return {
+      naming_profile: 'matrix-first',
+      experiment_shortname_pattern: 'exp-NNN-m<mat>-c<cell>-<variant>',
+      matrix_slug_pattern: '<research-question>-<primary-axis>',
+      require_variable_registry: true,
+      require_matrix_registry: true,
+      paper_label_required: true,
+    };
+  }
+  return {
+    naming_profile: 'paper-aligned',
+    experiment_shortname_pattern: 'exp-NNN-<axis-or-method>-<variant>',
+    matrix_slug_pattern: '<topic>-<primary-axis>-ablation',
+    require_variable_registry: true,
+    require_matrix_registry: true,
+    paper_label_required: false,
+  };
+}
+
+function buildNamingRef(opts: {
+  matrixId?: string;
+  variableId?: string;
+  canonicalVariable?: string;
+  variantValue?: string;
+  paperLabel?: string;
+}): ExperimentNamingRef | undefined {
+  const raw = {
+    ...(opts.matrixId ? { matrix_id: MatrixIdSchema.parse(opts.matrixId) } : {}),
+    ...(opts.variableId ? { variable_id: VariableIdSchema.parse(opts.variableId) } : {}),
+    ...(opts.canonicalVariable ? { canonical_variable: CanonicalVariableNameSchema.parse(opts.canonicalVariable) } : {}),
+    ...(opts.variantValue ? { variant_value: opts.variantValue.trim() } : {}),
+    ...(opts.paperLabel ? { paper_label: opts.paperLabel.trim() } : {}),
+  };
+  return Object.keys(raw).length ? ExperimentNamingRefSchema.parse(raw) : undefined;
 }
 
 function lockStatusForExperimentStatus(status: string): ScopeLock['status'] {
@@ -912,7 +992,7 @@ async function installHooks(): Promise<void> {
   }
 }
 
-async function initProject(opts: { name: string; modules?: string; ciMode?: string; goal?: string; hypothesis?: string }): Promise<void> {
+async function initProject(opts: { name: string; modules?: string; ciMode?: string; goal?: string; hypothesis?: string; namingProfile?: string }): Promise<void> {
   const modules = { ...DEFAULT_PROJECT_CONFIG.modules };
   for (const key of Object.keys(modules)) modules[key] = false;
   for (const mod of (opts.modules ?? 'gpu,data,lit').split(',').map((s) => s.trim()).filter(Boolean)) modules[mod] = true;
@@ -946,12 +1026,14 @@ async function initProject(opts: { name: string; modules?: string; ciMode?: stri
   await writeProjectConfig(config);
   await writeFile(PATHS.LEARNINGS, '', { flag: 'a' });
 
+  const namingProfile = parseNamingProfile(opts.namingProfile);
   const context = {
     project_name: opts.name,
     goal: opts.goal ?? opts.name,
     hypothesis: opts.hypothesis ?? 'Initial hypothesis to be refined.',
     formalism_version: 'v1',
     modules,
+    ...namingProfileContext(namingProfile),
   };
   const renders: Array<[string, string]> = [
     ['PROJECT.md.tmpl', PATHS.PROJECT_MD],
@@ -960,6 +1042,9 @@ async function initProject(opts: { name: string; modules?: string; ciMode?: stri
     ['INDEX.md.tmpl', PATHS.INDEX_MD],
     ['matrix.md.tmpl', PATHS.EXPERIMENTS_MATRIX],
     ['MAP.md.tmpl', PATHS.MAP_MD],
+    ['naming.yaml.tmpl', PATHS.NAMING],
+    ['variables.yaml.tmpl', PATHS.VARIABLES],
+    ['matrices.yaml.tmpl', PATHS.MATRICES],
     ['gitignore.tmpl', '.gitignore'],
     ['gitattributes.tmpl', '.gitattributes'],
     ['claude-settings.json.tmpl', '.claude/settings.json'],
@@ -1344,6 +1429,7 @@ program.command('init-project')
   .option('--ci-mode <mode>', 'warn-only | enforce', 'warn-only')
   .option('--goal <text>', 'one-line goal')
   .option('--hypothesis <text>', 'initial hypothesis')
+  .option('--naming-profile <profile>', 'minimal | paper-aligned | matrix-first', 'paper-aligned')
   .action(async (opts) => initProject(opts).catch(fail));
 
 program.command('update')
@@ -1379,6 +1465,11 @@ program.command('exp-init')
   .option('--control-removed <csv>', 'allowed removed changes')
   .option('--control-modified <csv>', 'allowed modified changes')
   .option('--file-invariant <items>', 'comma-separated path:reason entries')
+  .option('--matrix-id <id>', 'matrix registry id, e.g. mat-001')
+  .option('--variable-id <id>', 'canonical variable registry id, e.g. var-001')
+  .option('--canonical-variable <name>', 'canonical variable name, snake_case')
+  .option('--variant-value <value>', 'value or variant being tested')
+  .option('--paper-label <label>', 'human-readable label for paper tables')
   .option('--kill <csv>', 'kill criteria')
   .option('--success <csv>', 'success criteria')
   .option('--stage', 'git add created files')

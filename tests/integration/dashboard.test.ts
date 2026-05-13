@@ -79,6 +79,16 @@ describe('experiment dashboard', () => {
       'optimizer.lr=0.001,seed=1',
       '--control-modified',
       'baseline training loop',
+      '--matrix-id',
+      'mat-001',
+      '--variable-id',
+      'var-001',
+      '--canonical-variable',
+      'training_loop_variant',
+      '--variant-value',
+      'baseline',
+      '--paper-label',
+      'Baseline training loop',
       '--success',
       'baseline score is reproduced',
       '--kill',
@@ -112,6 +122,8 @@ describe('experiment dashboard', () => {
     expect(data.summary.total).toBe(2);
     expect(data.summary.planned).toBe(2);
     expect(data.experiments[0].children).toContain('exp-002');
+    expect(data.experiments[0].naming.matrix_id).toBe('mat-001');
+    expect(data.experiments[0].naming.canonical_variable).toBe('training_loop_variant');
     expect(data.experiments[0].next_subexperiments.join('\n')).toContain('exp-002 lr-sweep');
     expect(data.experiments[0].next_subexperiments.join('\n')).toContain('exp-003 seed sweep');
     expect(data.experiments[0].progress.summary).toContain('queued first training run');
@@ -119,6 +131,7 @@ describe('experiment dashboard', () => {
     const html = await readFile(join(cwd, '.lablock/dashboard/index.html'), 'utf8');
     expect(html).toContain('Dashboard Lab Experiment Board');
     expect(html).toContain('Search experiments');
+    expect(html).toContain('Baseline training loop');
     expect(html).toContain('class="lanes"');
     expect(html).toContain('data-exp-nav="exp-001"');
     expect(html).toContain('exp-002');

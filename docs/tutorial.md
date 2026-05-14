@@ -290,6 +290,12 @@ lablock exp-finalize --exp=exp-001 --status=done --tag
 请使用 /lab-postmortem，为 exp-001 写 postmortem。必须写清楚 what we did、what happened、why、what learned、conditions to revive。
 ```
 
+如果失败原因不清楚，先做深度诊断：
+
+```text
+请使用 /lab-research-debug，对 exp-001 的 <症状> 做深度 research：查相关论文/文档/issue/forum/community，并结合本地代码给出诊断结论。
+```
+
 最后跑一次 audit：
 
 ```bash

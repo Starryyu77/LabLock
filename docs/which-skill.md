@@ -36,6 +36,7 @@ For the full explanation of every skill, see `docs/skills-reference.md`.
 ## Debug And Handoff
 
 - Failure needs investigation before fixes: `/lab-debug`
+- Failure or anomaly needs papers/docs/forums/community search plus local code diagnosis: `/lab-research-debug`
 - Context must be sent to another AI or teammate: `/lab-handoff`
 - Another AI should write experiment code/scripts under a specific LabLock experiment: `/lab-handoff --type=implementation`
 

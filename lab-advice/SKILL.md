@@ -9,6 +9,7 @@ related-skills:
   - lab-plan
   - lab-exp-init
   - lab-guard
+  - lab-research-debug
   - lab-audit
 ---
 
@@ -75,6 +76,7 @@ Do not run expensive scans. Do not modify files.
 ### Debug and collaboration
 
 - Failure needs research-aligned reproduce -> hypothesis -> minimal fix: `/lab-debug`
+- Experiment issue needs literature/docs/forum/community research plus local code diagnosis: `/lab-research-debug`
 - Context must be packaged for external AI/teammate: `/lab-handoff`
 
 ### Claims, formalism, and paper

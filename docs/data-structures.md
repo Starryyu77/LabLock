@@ -28,6 +28,18 @@ Experiment names remain readable, but paper/table synthesis should prefer regist
 
 `.lablock/state/change-index.jsonl` maps `chg-XXXXXXXX` IDs to commits. It is append-only and gitignored.
 
+## Research Debug Reports
+
+Deep diagnostic reports live in `reviews/YYYY-MM-DD-<exp>-<topic>-research-debug.md`.
+
+They combine:
+
+- experiment context from `hypothesis.md`, `config.yaml`, `results.md`, and `scope.lock`
+- external evidence from docs, papers, issue trackers, forums, and open-source community threads
+- local code analysis and one diagnostic classification
+
+These reports are advisory. They should recommend a next action, not become a hard gate.
+
 ## Dashboard
 
 `lablock dashboard` generates a static experiment board from existing LabLock files:

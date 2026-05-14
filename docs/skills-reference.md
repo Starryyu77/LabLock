@@ -34,6 +34,7 @@ LabLock skills 分两类：
 | commit 出现 SCOPE-DRIFT warning | `/lab-guard` |
 | drift 应该变成新实验 | `/lab-fork` |
 | debug 时保持目标对齐和最小验证 | `/lab-debug` |
+| 实验问题需要查论文/社区并结合代码诊断 | `/lab-research-debug` |
 | 打包上下文或实验实现提示词给外部 AI/队友 | `/lab-handoff` |
 | 多实验结果综合成 claims | `/lab-synthesize` |
 | 实验失败/被 kill 后复盘 | `/lab-postmortem` |
@@ -692,7 +693,42 @@ LabLock skills 分两类：
 **下一步**：
 
 - 应用已验证 fix。
+- 如果三次本地尝试仍没定位，或怀疑是论文/库/社区中已知问题，用 `/lab-research-debug`。
 - 需要外部帮助时用 `/lab-handoff`。
+
+### `/lab-research-debug`
+
+**作用**：对实验问题做深度 research 诊断，把实验上下文、外部资料和本地代码分析合成一个非阻断结论。
+
+**何时使用**：
+
+- `/lab-debug` 已经做过本地复现/假设，但原因仍不清楚。
+- 用户问“有没有人遇到过类似问题”“查一下 issue/forum/community”“找参考文献再看代码”。
+- 结果异常可能是 bug、已知 reproduction caveat、库版本问题、环境问题或真实现象。
+
+**不要何时使用**：
+
+- 明显的一行错误或已经有明确 fix。用 `/lab-debug`。
+- 想让 LabLock 自动写实验脚本。用 `/lab-handoff --type=implementation` 生成 coding-agent prompt。
+- 只想做研究方向判断。用 `/lab-taste`。
+
+**会做什么**：
+
+- 读取当前实验的 hypothesis、config、results、scope.lock、changes 和 debug log。
+- 搜索官方文档、论文、reproduction repo、GitHub issue/discussion、论坛和开源社区相似案例。
+- 对本地问题代码做入口、配置、数据流、模型/loss/eval、环境版本等诊断。
+- 给出 `confirmed local bug / likely local bug / known upstream issue / expected phenomenon / environment issue / inconclusive` 分类、证据和下一步。
+
+**主要输出**：
+
+- `reviews/YYYY-MM-DD-<exp>-<topic>-research-debug.md`。
+
+**下一步**：
+
+- 最小修复或最小 reproducer/probe。
+- 影响实验意义时走 `/lab-guard`。
+- 需要外部 AI 时走 `/lab-handoff --type=debug`。
+- 实验应暂停/失败时走 `/lab-postmortem`。
 
 ### `/lab-handoff`
 
@@ -985,6 +1021,12 @@ pre-commit warns -> /lab-guard -> /lab-fork OR lablock override OR continue-with
 
 ```text
 /lab-exp-finalize --status=killed -> /lab-postmortem -> /lab-synthesize
+```
+
+If the failure cause is unclear, diagnose before finalizing:
+
+```text
+/lab-debug -> /lab-research-debug -> minimal fix OR /lab-guard OR /lab-postmortem
 ```
 
 When a surprising result may be more than a bug, insert `/lab-taste` before deciding the next experiment.

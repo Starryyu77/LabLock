@@ -8,6 +8,7 @@ import yaml from 'js-yaml';
 import {
   DEFAULT_PROJECT_CONFIG,
   CanonicalVariableNameSchema,
+  ExpIdSchema,
   ExperimentNamingRefSchema,
   MatrixIdSchema,
   NamingProfileValueSchema,
@@ -582,6 +583,57 @@ async function postmortem(opts: { exp: string; status?: string; overwrite?: bool
     shortname,
     status: opts.status ?? 'killed',
   }, { overwrite: Boolean(opts.overwrite) });
+  console.log(dest);
+}
+
+async function currentExperimentId(): Promise<string | null> {
+  const raw = await readFile(PATHS.STATE_CURRENT_EXP, 'utf8').catch(() => null);
+  const expId = raw?.trim();
+  return expId ? ExpIdSchema.parse(expId) : null;
+}
+
+async function researchDebug(opts: { exp?: string; topic: string; symptom?: string; overwrite?: boolean; stage?: boolean }): Promise<void> {
+  const topic = slugify(opts.topic);
+  const expId = opts.exp ? ExpIdSchema.parse(opts.exp) : await currentExperimentId();
+  const date = new Date().toISOString().slice(0, 10);
+  const dest = `${PATHS.REVIEWS}/${date}${expId ? `-${expId}` : ''}-${topic}-research-debug.md`;
+  let expDir: string | null = null;
+  let shortname = 'none';
+  let hypothesis = 'No experiment selected.';
+  let experimentStatus = 'unknown';
+  let lock: ScopeLock | null = null;
+
+  if (expId) {
+    expDir = await findExperimentDir(expId);
+    if (!expDir) throw new Error(`Experiment not found: ${expId}`);
+    shortname = await experimentShortname(expId);
+    const doc = await readFrontmatter(`${expDir}/hypothesis.md`).catch(() => null);
+    hypothesis = String(doc?.frontmatter?.hypothesis ?? 'Unknown hypothesis');
+    experimentStatus = String(doc?.frontmatter?.status ?? 'unknown');
+    lock = await readLock(expId).catch(() => null);
+  }
+
+  await renderToFile('research-debug.md.tmpl', dest, {
+    created: new Date().toISOString(),
+    date,
+    topic,
+    title: topic.replaceAll('-', ' '),
+    symptom: opts.symptom ?? 'Describe the exact failure, unexpected metric, traceback, or anomaly.',
+    exp_id: expId,
+    shortname,
+    experiment_label: expId ? `${expId}-${shortname}` : 'none',
+    experiment_dir: expDir ?? 'none',
+    hypothesis,
+    experiment_status: experimentStatus,
+    lock_path: expId ? `.lablock/locks/${expId}.scope.lock` : 'none',
+    results_path: expDir ? `${expDir}/results.md` : 'none',
+    controlled_added: lock?.controlled_changes.added ?? [],
+    controlled_removed: lock?.controlled_changes.removed ?? [],
+    controlled_modified: lock?.controlled_changes.modified ?? [],
+    success_criteria: lock?.success_criteria ?? [],
+    kill_criteria: lock?.kill_criteria ?? [],
+  }, { overwrite: Boolean(opts.overwrite) });
+  if (opts.stage) await rawGit(['add', dest]);
   console.log(dest);
 }
 
@@ -1554,6 +1606,15 @@ program.command('postmortem')
   .option('--status <status>', 'final status', 'killed')
   .option('--overwrite', 'overwrite existing postmortem')
   .action(async (opts) => postmortem(opts).catch(fail));
+
+program.command('research-debug')
+  .description('Create a deep research diagnostic report skeleton for an experiment issue')
+  .requiredOption('--topic <name>', 'short diagnostic topic')
+  .option('--exp <id>', 'experiment id; defaults to .lablock/state/current-exp when present')
+  .option('--symptom <text>', 'failure symptom, unexpected metric, traceback summary, or anomaly')
+  .option('--overwrite', 'overwrite existing report')
+  .option('--stage', 'git add generated report')
+  .action(async (opts) => researchDebug(opts).catch(fail));
 
 program.command('cleanup-pr')
   .requiredOption('--exp <id>', 'experiment id')

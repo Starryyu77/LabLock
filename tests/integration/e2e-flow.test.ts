@@ -99,6 +99,24 @@ describe('LabLock E2E lifecycle', () => {
     expect(matrix).not.toContain('No experiments yet');
     await writeFile(join(cwd, '.lablock/state/current-exp'), 'exp-001\n');
 
+    const researchDebug = await run([
+      process.execPath,
+      lablock,
+      'research-debug',
+      '--topic',
+      'loss-spike',
+      '--symptom',
+      'loss diverges after step 800',
+    ], cwd);
+    const reportPath = researchDebug.stdout.trim();
+    expect(reportPath).toContain('reviews/');
+    const report = await readFile(join(cwd, reportPath), 'utf8');
+    expect(report).toContain('# Research Debug: loss spike');
+    expect(report).toContain('loss diverges after step 800');
+    expect(report).toContain('Baseline locks the optimizer learning rate.');
+    expect(report).toContain('## External Research Plan');
+    expect(report).toContain('## Local Code Analysis');
+
     const configPath = join(cwd, 'experiments/exp-001-baseline/config.yaml');
     await writeFile(configPath, 'optimizer:\n  lr: 0.002\nseed: 1\n');
     await git(cwd, ['add', 'experiments/exp-001-baseline/config.yaml']);

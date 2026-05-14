@@ -4,6 +4,7 @@ description: |
   Research-aligned debugging. Use for "debug", "why is X failing", "loss exploded", or "investigate". Keeps fixes tied to the active experiment goal: reproduce when needed, test a hypothesis, apply minimal target-aligned fixes, and write a debug log.
 disable-model-invocation: false
 related-skills:
+  - lab-research-debug
   - lab-handoff
 ---
 
@@ -92,6 +93,7 @@ This is a sign your investigation was incomplete. Step back:
 
 - Re-read your debug log.
 - What assumption did you not question?
+- Use `/lab-research-debug` if the symptom may already be discussed in papers, library issues, reproduction repos, or open-source communities.
 - Consider `/lab-handoff --type=debug` to bring in a fresh AI perspective.
 
 Do not try a fourth fix without either narrowing the reproducer or explicitly changing the research plan.

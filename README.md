@@ -123,6 +123,7 @@ lablock migrate-node legacy-baseline --source runs/2026-05-01-baseline --source-
 lablock exp-start --exp=exp-001
 lablock exp-finalize --exp=exp-001 --status=killed
 lablock postmortem --exp=exp-001
+lablock research-debug --exp=exp-001 --topic loss-spike --symptom "loss diverges after step 800"
 lablock cleanup-pr --exp=exp-001 --dry-run
 lablock fork --from exp-001 --shortname model-fork --reason "model invariant changed" --stage
 lablock override --exp=exp-001 --reason="intentional drift"
@@ -207,6 +208,7 @@ LabLock skills 分两类：
 | Skill | 什么时候用 | 它做什么 | 主要输出 |
 |---|---|---|---|
 | `/lab-debug` | 训练、评估、hook、数据流出问题 | 先复现、追踪数据流、写 hypothesis，再限制修复尝试次数 | `debug/YYYY-MM-DD-topic.md` |
+| `/lab-research-debug` | 实验问题需要查论文、文档、issue、论坛或开源社区，再结合本地代码诊断 | 聚合实验上下文、外部证据和本地代码分析，给出非阻断诊断结论和下一步 | `reviews/YYYY-MM-DD-exp-topic-research-debug.md` |
 | `/lab-handoff` | 要把上下文或实验实现提示词打包给 ChatGPT web、coding agent 或队友 | 按 debug / method / results / design / writing / implementation 模板抽取上下文 | `handoffs/outgoing/YYYY-MM-DD-topic.md` |
 
 ### 形式化、claim 与论文

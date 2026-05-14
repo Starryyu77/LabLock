@@ -48,4 +48,16 @@ describe('skill lint', () => {
     expect(skill).toContain('reviews/<date>-<topic>-taste.md');
     expect(skill).toContain('not a gate');
   });
+
+  test('lab-research-debug combines external research and local diagnosis', async () => {
+    const skill = await readFile(join(repoRoot, 'lab-research-debug/SKILL.md'), 'utf8');
+    const template = await readFile(join(repoRoot, 'templates/research-debug.md.tmpl'), 'utf8');
+    expect(skill).toContain('open-source communities');
+    expect(skill).toContain('External Research');
+    expect(skill).toContain('Local Code Analysis');
+    expect(skill).toContain('Confirmed local bug');
+    expect(skill).toContain('not a blocking verdict');
+    expect(template).toContain('## External Research Plan');
+    expect(template).toContain('## Diagnostic Conclusion');
+  });
 });

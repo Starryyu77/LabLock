@@ -63,6 +63,9 @@ describe('skill lint', () => {
 
   test('vNext skeleton skills and templates are present', async () => {
     const advice = await readFile(join(repoRoot, 'lab-advice/SKILL.md'), 'utf8');
+    const literature = await readFile(join(repoRoot, 'lab-literature-research/SKILL.md'), 'utf8');
+    const methodology = await readFile(join(repoRoot, 'lab-methodology-synthesis/SKILL.md'), 'utf8');
+    const story = await readFile(join(repoRoot, 'lab-research-story/SKILL.md'), 'utf8');
     const planExp = await readFile(join(repoRoot, 'lab-plan-exp/SKILL.md'), 'utf8');
     const roadmap = await readFile(join(repoRoot, 'lab-roadmap/SKILL.md'), 'utf8');
     const monitor = await readFile(join(repoRoot, 'lab-monitor/SKILL.md'), 'utf8');
@@ -70,6 +73,9 @@ describe('skill lint', () => {
     const handoff = await readFile(join(repoRoot, 'lab-handoff/SKILL.md'), 'utf8');
 
     expect(advice).toContain('vNext Stage Routing');
+    expect(literature).toContain('research/literature-review.md');
+    expect(methodology).toContain('research/methodology.md');
+    expect(story).toContain('Research Narrative');
     expect(planExp).toContain('Roadmap');
     expect(roadmap).toContain('Step 名称');
     expect(monitor).toContain('实验总目标');
@@ -79,12 +85,17 @@ describe('skill lint', () => {
 
     for (const template of [
       'objective.md.tmpl',
+      'literature-review.md.tmpl',
+      'methodology.md.tmpl',
+      'research-story.md.tmpl',
       'progress.md.tmpl',
       'roadmap.md.tmpl',
       'monitor.md.tmpl',
       'deguard.md.tmpl',
       'handoff-expert-consultation.md.tmpl',
+      'handoff-execution.md.tmpl',
       'handoff-reply-summary.md.tmpl',
+      'handoff-summary.md.tmpl',
     ]) {
       const body = await readFile(join(repoRoot, 'templates', template), 'utf8');
       expect(body.length).toBeGreaterThan(100);

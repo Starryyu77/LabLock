@@ -56,6 +56,20 @@ afterEach(async () => {
 
 describe('deterministic lifecycle CLI', () => {
   test('draft creates vNext objective and expert handoff skeletons', async () => {
+    const literature = await run([
+      process.execPath,
+      lablock,
+      'draft',
+      'literature-review',
+      '--topic',
+      'agent-alignment',
+      '--total-goal',
+      'Understand agent research alignment literature.',
+    ], cwd);
+    expect(literature.stdout).toContain('research/literature-review.md');
+    const literatureBody = await readFile(join(cwd, 'research/literature-review.md'), 'utf8');
+    expect(literatureBody).toContain('Understand agent research alignment literature.');
+
     const objective = await run([
       process.execPath,
       lablock,
@@ -93,6 +107,64 @@ describe('deterministic lifecycle CLI', () => {
     const handoffBody = await readFile(join(cwd, handoffPath), 'utf8');
     expect(handoffBody).toContain('Diagnose why the experiment drifted.');
     expect(handoffBody).toContain('The agent added unrelated validators instead of testing the hypothesis.');
+  });
+
+  test('handoff command creates execution and reply mode bundles', async () => {
+    await run([
+      process.execPath,
+      lablock,
+      'draft',
+      'objective',
+      '--exp',
+      'exp-001',
+      '--topic',
+      'alignment',
+      '--overwrite',
+      '--total-goal',
+      'Preserve the alignment objective.',
+      '--stage-goal',
+      'Run the next roadmap step.',
+    ], cwd);
+
+    const execution = await run([
+      process.execPath,
+      lablock,
+      'handoff',
+      '--mode',
+      'execution',
+      '--exp',
+      'exp-001',
+      '--topic',
+      'run-next-step',
+      '--task',
+      'Implement the next minimal experiment step.',
+    ], cwd);
+    expect(execution.stdout).toContain('handoffs/outgoing/');
+    const executionPath = execution.stdout.trim();
+    const executionBody = await readFile(join(cwd, executionPath), 'utf8');
+    expect(executionBody).toContain('Execution Handoff');
+    expect(executionBody).toContain('Implement the next minimal experiment step.');
+    expect(executionBody).toContain('Preserve the alignment objective.');
+
+    const incomingPath = join(cwd, 'handoffs/incoming/reply.md');
+    await Bun.write(incomingPath, 'The minimal next action is to remove the unrelated validator and rerun the core metric.');
+    const reply = await run([
+      process.execPath,
+      lablock,
+      'handoff',
+      '--mode',
+      'reply',
+      '--topic',
+      'run-next-step',
+      '--incoming',
+      'handoffs/incoming/reply.md',
+      '--outgoing',
+      executionPath,
+    ], cwd);
+    expect(reply.stdout).toContain('handoffs/summaries/');
+    const replyBody = await readFile(join(cwd, reply.stdout.trim()), 'utf8');
+    expect(replyBody).toContain('Handoff Reply Summary');
+    expect(replyBody).toContain('handoffs/incoming/reply.md');
   });
 
   test('finalize, postmortem, and cleanup-pr dry-run', async () => {

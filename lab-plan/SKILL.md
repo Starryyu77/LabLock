@@ -4,6 +4,9 @@ description: |
   Turn a vague research idea into a falsifiable plan. Use for "research plan", "research idea", "early-stage planning", or "what should I research". Produces hypotheses, alternatives, and a narrow recommended wedge under plans/.
 disable-model-invocation: false
 related-skills:
+  - lab-literature-research
+  - lab-methodology-synthesis
+  - lab-research-story
   - lab-plan-exp
   - lab-review
   - lab-taste

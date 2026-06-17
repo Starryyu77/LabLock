@@ -6,6 +6,9 @@ disable-model-invocation: false
 related-skills:
   - lab-init
   - lab-migrate
+  - lab-literature-research
+  - lab-methodology-synthesis
+  - lab-research-story
   - lab-plan
   - lab-plan-exp
   - lab-roadmap
@@ -60,8 +63,9 @@ Do not run expensive scans. Do not modify files.
 ### Stage 1: Research direction formation
 
 - Vague research idea, unclear question, need falsifiable hypotheses: `/lab-plan`
-- Idea needs literature research: future `/lab-literature-research`; use `/lab-plan` plus explicit literature review for now
-- Literature and resources need a candidate methodology: future `/lab-methodology-synthesis`; use `/lab-plan` for now
+- Idea needs literature research, paper lineage, gaps, or positioning: `/lab-literature-research`
+- Literature and resources need a candidate methodology: `/lab-methodology-synthesis`
+- Direction needs a coherent Research Narrative or Lab Story: `/lab-research-story`
 - Existing plan or hypothesis needs advisor/reviewer2/feasibility/novelty review: `/lab-review`
 - Need all four review perspectives and a combined review bundle: `/lab-autoplan`
 - Need a research taste lens for direction choice, story potential, common-problem abstraction, anomaly meaning, or "科研品味": `/lab-taste`

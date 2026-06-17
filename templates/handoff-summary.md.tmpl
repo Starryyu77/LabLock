@@ -1,0 +1,54 @@
+---
+type: handoff-summary
+created: {{date}}
+status: draft
+exp_id: {{exp_id}}
+---
+
+# Handoff Summary: {{title}}
+
+## Scope
+
+- Experiment: {{exp_id}}
+- Topic: {{topic}}
+- Outgoing handoff: `{{outgoing_path}}`
+- Incoming reply: `{{incoming_path}}`
+
+## Incoming Excerpt
+
+```markdown
+{{incoming_excerpt}}
+```
+
+## Consolidated Advice
+
+{{#each advice}}
+- {{this}}
+{{/each}}
+
+## Actionable Tasks
+
+{{#each tasks}}
+- {{this}}
+{{/each}}
+
+## Caveats
+
+{{#each caveats}}
+- {{this}}
+{{/each}}
+
+## References
+
+{{#each references}}
+- {{this}}
+{{/each}}
+
+## Recommended Next Action
+
+{{next_action}}
+
+## Writeback
+
+- Update `progress.md` with accepted actions.
+- Do not auto-apply code or config changes from external replies.

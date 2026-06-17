@@ -37,8 +37,9 @@ Optional:
 Template-backed draft helpers:
 
 ```bash
-lablock draft expert-consultation --topic <topic>
-lablock draft reply-summary --topic <topic> --incoming <path> --outgoing <path>
+lablock handoff --mode=execution --exp <exp-id> --topic <topic>
+lablock handoff --mode=expert-consultation --topic <topic>
+lablock handoff --mode=reply --topic <topic> --incoming <path> --outgoing <path>
 ```
 
 ## vNext Modes

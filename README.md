@@ -185,6 +185,9 @@ LabLock skills 分两类：
 | Skill | 什么时候用 | 它做什么 | 主要输出 |
 |---|---|---|---|
 | `/lab-plan` | 只有一个模糊研究想法 | 把想法拆成研究问题、隐藏前提、可证伪 hypothesis 和实现备选 | `plans/YYYY-MM-DD-topic.md` |
+| `/lab-literature-research` | idea、关键词或异常结果需要放进文献脉络 | 调研相关论文、方法簇、缺口和定位，不做硬 gate | `research/literature-review.md` |
+| `/lab-methodology-synthesis` | 已有文献和资源，需要形成候选创新方法 | 综合论文、实现、实验和约束，提出 2-3 条方法路线 | `research/methodology.md` |
+| `/lab-research-story` | 需要把方向写成 Research Narrative / Lab Story | 连接共性问题、方法思想、实验路线和 claim 潜力 | `research/story.md` |
 | `/lab-plan-exp` | 研究方向需要变成可执行实验计划 | 通过交互明确目标、约束、产物、验证方式和初步 Roadmap | `plans/` 或 `experiments/<exp>/plan.md` |
 | `/lab-roadmap` | 已有实验计划需要拆成一步步执行路线 | 拆分阶段、步骤、输入、输出、验证点和用户确认点 | `plans/*-roadmap.md` 或 `experiments/<exp>/roadmap.md` |
 | `/lab-review` | 想审一个 plan 或 experiment design | 以 advisor / reviewer2 / feasibility / novelty 视角挑问题 | `reviews/YYYY-MM-DD-target-mode.md` |
@@ -214,7 +217,7 @@ LabLock skills 分两类：
 | `/lab-deguard` | Agent 加入过多非目标相关 gate、validator、fallback、retry 或抽象层 | 识别防御性膨胀，建议 keep/simplify/remove/defer/clarify | `reviews/YYYY-MM-DD-exp-deguard.md` |
 | `/lab-handoff` | 要把任务交给 Agent，或把问题交给外部专家，也可回收 incoming 回复 | 支持 execution、expert-consultation、reply、summary；旧 `--type=implementation` 兼容 | `handoffs/outgoing/`、`incoming/`、`summaries/` |
 
-这些 vNext 产物可以用轻量 CLI 先生成草稿，例如 `lablock draft objective --exp exp-001 --topic alignment`、`lablock draft roadmap --exp exp-001`、`lablock draft expert-consultation --topic training-anomaly`。该命令只写 Markdown 草稿，不执行实验、不应用外部建议。
+这些 vNext 产物可以用轻量 CLI 先生成草稿，例如 `lablock draft literature-review --topic alignment`、`lablock draft objective --exp exp-001 --topic alignment`、`lablock draft roadmap --exp exp-001`。handoff 可用 `lablock handoff --mode=execution --exp exp-001 --topic next-step` 或 `lablock handoff --mode=expert-consultation --topic training-anomaly`。这些命令只写 Markdown，不执行实验、不应用外部建议。
 
 ### 形式化、claim 与论文
 

@@ -17,6 +17,9 @@ For the full explanation of every skill, see `docs/skills-reference.md`.
 ## Planning
 
 - Idea is vague or too broad: `/lab-plan`
+- Idea needs papers, research lineage, gaps, or positioning: `/lab-literature-research`
+- Literature, implementations, and constraints need to become candidate methods: `/lab-methodology-synthesis`
+- Direction needs a coherent Research Narrative or Lab Story: `/lab-research-story`
 - One experiment needs an interactive plan, stage goals, deliverables, and success criteria: `/lab-plan-exp`
 - Approved plan needs a step-by-step execution route: `/lab-roadmap`
 - Existing plan needs pressure test: `/lab-review`
@@ -38,9 +41,9 @@ For the full explanation of every skill, see `docs/skills-reference.md`.
 
 - Failure needs investigation before fixes: `/lab-debug`
 - Failure or anomaly needs papers/docs/forums/community search plus local code diagnosis: `/lab-research-debug`
-- Execution task must be sent to another AI/coding agent: `/lab-handoff --mode=execution`
-- Problem must be sent to an advisor, expert, community, or external AI for judgment: `/lab-handoff --mode=expert-consultation`
-- Incoming handoff reply needs summary and next actions: `/lab-handoff --mode=reply`
+- Execution task must be sent to another AI/coding agent: `/lab-handoff --mode=execution` or `lablock handoff --mode=execution`
+- Problem must be sent to an advisor, expert, community, or external AI for judgment: `/lab-handoff --mode=expert-consultation` or `lablock handoff --mode=expert-consultation`
+- Incoming handoff reply needs summary and next actions: `/lab-handoff --mode=reply` or `lablock handoff --mode=reply`
 - Another AI should write experiment code/scripts under a specific LabLock experiment: `/lab-handoff --type=implementation` remains legacy-compatible
 
 ## Monitoring And Degating

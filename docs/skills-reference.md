@@ -24,6 +24,9 @@ LabLock skills 分两类：
 | 已有科研仓库非破坏性接入 | `/lab-migrate` |
 | 更新本机安装的 LabLock | `/lab-update` |
 | 模糊研究想法变成计划 | `/lab-plan` |
+| idea 需要文献脉络、缺口和定位 | `/lab-literature-research` |
+| 文献和资源需要综合成候选方法论 | `/lab-methodology-synthesis` |
+| 方向需要写成 Research Narrative / Lab Story | `/lab-research-story` |
 | 实验计划与 Roadmap 设计 | `/lab-plan-exp` |
 | 已有计划拆成执行路线 | `/lab-roadmap` |
 | 审计划/实验设计 | `/lab-review` |
@@ -269,6 +272,115 @@ LabLock skills 分两类：
 
 - `/lab-review` 审计划。
 - `/lab-plan-exp` 设计第一个实验。
+
+### `/lab-literature-research`
+
+**作用**：把早期 idea、关键词、异常结果或初步假设放进已有研究脉络中。
+
+**何时使用**：
+
+- 需要知道相关论文、方法簇、benchmark、开源实现和缺口。
+- Stage 1 还没有形成清晰方法论。
+- 用户问“这个方向有哪些相关工作”“有没有类似现象”。
+
+**不要何时使用**：
+
+- 已经有明确方法和实验目标。用 `/lab-plan-exp`。
+- 需要本地代码诊断和社区 issue 搜索。用 `/lab-research-debug`。
+
+**会做什么**：
+
+- 梳理研究问题脉络。
+- 聚合关键文献簇和方法线索。
+- 区分已验证事实、作者 claim、推断和未知。
+- 提出可进入方法论综合的缺口与机会。
+
+**主要输出**：
+
+- `research/literature-review.md`。
+- 或 `lit/YYYY-MM-DD-<topic>-literature-review.md`。
+
+**草稿命令**：
+
+- `lablock draft literature-review --topic <topic>`。
+
+**下一步**：
+
+- `/lab-methodology-synthesis`。
+- `/lab-taste`。
+- `/lab-plan`。
+
+### `/lab-methodology-synthesis`
+
+**作用**：把文献、开源实现、已有实验、社区经验和工程约束综合成候选创新方法论。
+
+**何时使用**：
+
+- 已有文献调研，需要形成 2-3 条可比较的方法路线。
+- 用户想从多个资源中提炼创新点。
+- 需要决定哪条路线进入第一轮实验。
+
+**不要何时使用**：
+
+- 没有相关文献和背景。先用 `/lab-literature-research`。
+- 已经确定实验目标，只缺执行路线。用 `/lab-roadmap`。
+
+**会做什么**：
+
+- 提炼共性问题和设计原则。
+- 形成候选方法、依赖、适用范围和风险。
+- 明确 planned intervention 边界，避免把复杂性误当成创新。
+- 推荐第一轮实验路线。
+
+**主要输出**：
+
+- `research/methodology.md`。
+
+**草稿命令**：
+
+- `lablock draft methodology --topic <topic>`。
+
+**下一步**：
+
+- `/lab-research-story`。
+- `/lab-taste`。
+- `/lab-plan` 或 `/lab-plan-exp`。
+
+### `/lab-research-story`
+
+**作用**：把研究方向写成 Research Narrative / Lab Story，连接共性问题、方法思想、实验路线和 claim 潜力。
+
+**何时使用**：
+
+- 已有文献或方法论，需要形成可以进入计划和论文的叙述骨架。
+- 用户想把“方法 A 在任务 B 得到结果 C”提升为共性问题叙述。
+- 实验结果出现后，需要重新组织研究故事。
+
+**不要何时使用**：
+
+- 需要查文献。先用 `/lab-literature-research`。
+- 需要具体实验路线。用 `/lab-plan-exp`。
+- 要写正式论文段落。用 `/lab-paper-write`。
+
+**会做什么**：
+
+- 写清共性问题、为什么现在重要、方法思想、证据路径和 claim 潜力。
+- 标注过度 claim、fashion/status bias 和工程化叙述风险。
+- 产出能喂给 `/lab-plan` 或 `/lab-plan-exp` 的故事骨架。
+
+**主要输出**：
+
+- `research/story.md`。
+
+**草稿命令**：
+
+- `lablock draft research-story --topic <topic>`。
+
+**下一步**：
+
+- `/lab-plan`。
+- `/lab-plan-exp`。
+- `/lab-synthesize`。
 
 ### `/lab-plan-exp`
 
@@ -885,8 +997,10 @@ LabLock skills 分两类：
 
 **草稿命令**：
 
-- `lablock draft expert-consultation --topic <topic>`。
-- `lablock draft reply-summary --topic <topic> --incoming <path> --outgoing <path>`。
+- `lablock handoff --mode=execution --exp <exp-id> --topic <topic>`。
+- `lablock handoff --mode=expert-consultation --topic <topic>`。
+- `lablock handoff --mode=reply --topic <topic> --incoming <path> --outgoing <path>`。
+- `lablock handoff --type=implementation --exp <exp-id> --topic <topic>` 仍兼容旧调用。
 
 **下一步**：
 

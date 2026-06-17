@@ -662,6 +662,9 @@ async function defaultDraftDestination(kind: string, context: {
   exp_id: string | null;
   exp_dir: string | null;
 }): Promise<string> {
+  if (kind === 'literature-review') return `research/literature-review.md`;
+  if (kind === 'methodology') return `research/methodology.md`;
+  if (kind === 'research-story') return `research/story.md`;
   if (['objective', 'roadmap', 'progress'].includes(kind) && context.exp_dir) {
     return `${context.exp_dir}/${kind}.md`;
   }
@@ -696,6 +699,9 @@ async function draftVNextDoc(opts: {
 }): Promise<void> {
   const kind = opts.kind;
   const templates: Record<string, string> = {
+    'literature-review': 'literature-review.md.tmpl',
+    methodology: 'methodology.md.tmpl',
+    'research-story': 'research-story.md.tmpl',
     objective: 'objective.md.tmpl',
     roadmap: 'roadmap.md.tmpl',
     progress: 'progress.md.tmpl',
@@ -722,8 +728,12 @@ async function draftVNextDoc(opts: {
     date,
     created: new Date().toISOString(),
     title,
+    topic,
     project_name: projectName,
     exp_id: expId ?? 'TBD',
+    starting_idea: opts.totalGoal ?? 'Describe the starting idea, keyword, anomaly, or early hypothesis.',
+    common_problem: opts.totalGoal ?? 'Describe the common problem this methodology should address.',
+    story_sentence: opts.totalGoal ?? 'Write the one-sentence research narrative.',
     total_goal: opts.totalGoal ?? 'Describe the total research goal.',
     stage_goal: opts.stageGoal ?? 'Describe the current stage goal.',
     specific_ask: opts.specificAsk ?? 'Give a diagnosis and recommend the next research-aligned action.',
@@ -742,6 +752,118 @@ async function draftVNextDoc(opts: {
   }, { overwrite: Boolean(opts.overwrite) });
   if (opts.stage) await rawGit(['add', dest]);
   if (opts.json) jsonOut({ kind, path: dest, exp: expId ?? null });
+  else console.log(dest);
+}
+
+async function readIfPresent(path: string | null): Promise<string | null> {
+  if (!path) return null;
+  return await readFile(path, 'utf8').catch(() => null);
+}
+
+async function handoffVNext(opts: {
+  mode?: string;
+  type?: string;
+  topic?: string;
+  exp?: string;
+  title?: string;
+  task?: string;
+  totalGoal?: string;
+  stageGoal?: string;
+  specificAsk?: string;
+  problem?: string;
+  summary?: string;
+  outgoing?: string;
+  incoming?: string;
+  out?: string;
+  overwrite?: boolean;
+  stage?: boolean;
+  json?: boolean;
+}): Promise<void> {
+  const legacyMap: Record<string, string> = {
+    implementation: 'execution',
+    debug: 'expert-consultation',
+    method: 'expert-consultation',
+    results: 'expert-consultation',
+    design: 'expert-consultation',
+    writing: 'expert-consultation',
+  };
+  const mode = opts.mode ?? (opts.type ? legacyMap[opts.type] : undefined) ?? 'execution';
+  const templates: Record<string, string> = {
+    execution: 'handoff-execution.md.tmpl',
+    'expert-consultation': 'handoff-expert-consultation.md.tmpl',
+    reply: 'handoff-reply-summary.md.tmpl',
+    summary: 'handoff-summary.md.tmpl',
+  };
+  const template = templates[mode];
+  if (!template) throw new Error('--mode must be execution, expert-consultation, reply, or summary');
+
+  const expId = opts.exp ? ExpIdSchema.parse(opts.exp) : await currentExperimentId();
+  const expDir = expId ? await findExperimentDir(expId) : null;
+  if (expId && !expDir && opts.exp) throw new Error(`Experiment not found: ${expId}`);
+  const date = today();
+  const topic = docSlugify(opts.topic ?? opts.title ?? expId ?? mode, mode);
+  const title = opts.title ?? titleFromSlug(topic);
+  const dest = opts.out ?? (
+    mode === 'reply' || mode === 'summary'
+      ? `${PATHS.HANDOFFS}/summaries/${date}-${topic}-${mode}.md`
+      : `${PATHS.HANDOFFS_OUTGOING}/${date}-${topic}-${mode}.md`
+  );
+
+  const projectDoc = await readIfPresent(PATHS.PROJECT_MD);
+  const formalism = await readIfPresent(PATHS.FORMALISM_MD);
+  const objectivePath = expDir ? `${expDir}/objective.md` : null;
+  const planPath = expDir ? `${expDir}/plan.md` : null;
+  const roadmapPath = expDir ? `${expDir}/roadmap.md` : null;
+  const progressPath = expDir ? `${expDir}/progress.md` : null;
+  const hypothesisPath = expDir ? `${expDir}/hypothesis.md` : null;
+  const resultsPath = expDir ? `${expDir}/results.md` : null;
+  const sourcePaths = [objectivePath, planPath, roadmapPath, progressPath, hypothesisPath, resultsPath, expId ? `.lablock/locks/${expId}.scope.lock` : null].filter(Boolean);
+  const hypothesisDoc = hypothesisPath ? await readFrontmatter(hypothesisPath).catch(() => null) : null;
+  const lock = expId ? await readLock(expId).catch(() => null) : null;
+
+  await renderToFile(template, dest, {
+    date,
+    created: new Date().toISOString(),
+    title,
+    topic,
+    project_name: title,
+    project_summary: projectDoc ?? 'No PROJECT.md found.',
+    formalism: formalism ?? 'No formalism.md found.',
+    formalism_version: 'unknown',
+    domain: 'research',
+    exp_id: expId ?? 'TBD',
+    exp_dir: expDir ?? 'none',
+    exp_slug: expDir?.replace(/^experiments\//, '') ?? 'none',
+    hypothesis: String(hypothesisDoc?.frontmatter?.hypothesis ?? lock?.hypothesis ?? 'No hypothesis recorded.'),
+    parent: String(hypothesisDoc?.frontmatter?.parent ?? lock?.parent ?? 'none'),
+    total_goal: opts.totalGoal ?? 'Preserve the research objective described in objective.md, plan.md, or PROJECT.md.',
+    stage_goal: opts.stageGoal ?? 'Complete the current roadmap step without adding unrelated defensive mechanisms.',
+    task: opts.task ?? 'Describe the concrete task to execute.',
+    coding_task: opts.task ?? 'Describe the concrete coding or analysis task to execute.',
+    primary_intervention: lock?.controlled_changes.modified?.join(', ') ?? 'See plan/objective.',
+    success_criteria: lock?.success_criteria?.join('\n') ?? 'See objective.md or roadmap.md.',
+    source_paths: sourcePaths,
+    additional_sources: sourcePaths.map((p) => `- \`${p}\``).join('\n'),
+    objective_excerpt: await readIfPresent(objectivePath) ?? 'No objective.md found.',
+    roadmap_excerpt: await readIfPresent(roadmapPath) ?? 'No roadmap.md found.',
+    progress_excerpt: await readIfPresent(progressPath) ?? 'No progress.md found.',
+    specific_ask: opts.specificAsk ?? 'Give a diagnosis and recommend the next research-aligned action.',
+    problem_statement: opts.problem ?? 'Describe the problem, anomaly, or decision that needs expert judgment.',
+    summary: opts.summary ?? 'Summarize the incoming reply here.',
+    outgoing_path: opts.outgoing ?? 'handoffs/outgoing/<date-topic>.md',
+    incoming_path: opts.incoming ?? 'handoffs/incoming/<date-topic>.md',
+    incoming_excerpt: opts.incoming ? await readIfPresent(opts.incoming) ?? 'Incoming reply file not found.' : 'No incoming reply path provided.',
+    evidence: ['Add the most relevant local result, log, paper, issue, or implementation evidence.'],
+    candidate_explanations: ['Add plausible explanations to evaluate.'],
+    constraints: ['Preserve the research objective and avoid unrelated defensive gates.'],
+    advice: ['Summarize advice from the incoming reply.'],
+    tasks: ['Extract concrete next actions from the incoming reply.'],
+    caveats: ['List caveats or uncertainty from the reply.'],
+    references: ['List references, papers, issues, or links mentioned in the reply.'],
+    next_action: 'Choose one research-aligned next action and record it in progress.md.',
+  }, { overwrite: Boolean(opts.overwrite) });
+  if (opts.stage) await rawGit(['add', dest]);
+  if (opts.json) jsonOut({ mode, path: dest, exp: expId ?? null });
   else console.log(dest);
 }
 
@@ -1725,8 +1847,8 @@ program.command('research-debug')
   .action(async (opts) => researchDebug(opts).catch(fail));
 
 program.command('draft')
-  .description('Create a vNext objective, roadmap, progress, monitor, deguard, or handoff draft')
-  .argument('<kind>', 'objective | roadmap | progress | monitor | deguard | expert-consultation | reply-summary')
+  .description('Create a vNext research, objective, roadmap, progress, monitor, deguard, or handoff draft')
+  .argument('<kind>', 'literature-review | methodology | research-story | objective | roadmap | progress | monitor | deguard | expert-consultation | reply-summary')
   .option('--topic <name>', 'short topic for filename')
   .option('--exp <id>', 'experiment id; defaults to .lablock/state/current-exp when present')
   .option('--title <text>', 'human-readable title')
@@ -1742,6 +1864,27 @@ program.command('draft')
   .option('--stage', 'git add generated draft')
   .option('--json', 'json output')
   .action(async (kind, opts) => draftVNextDoc({ kind, ...opts }).catch(fail));
+
+program.command('handoff')
+  .description('Create a vNext execution, expert consultation, reply, or summary handoff')
+  .option('--mode <mode>', 'execution | expert-consultation | reply | summary')
+  .option('--type <legacy-type>', 'legacy alias: implementation | debug | method | results | design | writing')
+  .option('--topic <name>', 'short topic for filename')
+  .option('--exp <id>', 'experiment id; defaults to .lablock/state/current-exp when present')
+  .option('--title <text>', 'human-readable title')
+  .option('--task <text>', 'execution task for an agent')
+  .option('--total-goal <text>', 'total research goal')
+  .option('--stage-goal <text>', 'current stage goal')
+  .option('--specific-ask <text>', 'expert consultation ask')
+  .option('--problem <text>', 'problem statement for expert consultation')
+  .option('--summary <text>', 'initial summary for reply or summary modes')
+  .option('--outgoing <path>', 'source outgoing handoff path for reply mode')
+  .option('--incoming <path>', 'incoming reply path for reply mode')
+  .option('--out <path>', 'override destination path')
+  .option('--overwrite', 'overwrite existing handoff')
+  .option('--stage', 'git add generated handoff')
+  .option('--json', 'json output')
+  .action(async (opts) => handoffVNext(opts).catch(fail));
 
 program.command('cleanup-pr')
   .requiredOption('--exp <id>', 'experiment id')

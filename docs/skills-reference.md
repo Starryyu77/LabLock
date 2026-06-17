@@ -642,7 +642,8 @@ LabLock skills 分两类：
 
 **会做什么**：
 
-- 验证实验上下文和 scope。
+- 验证实验上下文和当前实验 scope。
+- 检查工作区，但不要求全仓库 clean；其他实验或无关文件的脏状态只作为 warning。
 - 设置 `.lablock/state/current-exp`。
 - 更新 `infra/gpu/runs.md`。
 - 打印应该运行的训练命令。

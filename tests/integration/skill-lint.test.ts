@@ -71,6 +71,7 @@ describe('skill lint', () => {
     const monitor = await readFile(join(repoRoot, 'lab-monitor/SKILL.md'), 'utf8');
     const deguard = await readFile(join(repoRoot, 'lab-deguard/SKILL.md'), 'utf8');
     const handoff = await readFile(join(repoRoot, 'lab-handoff/SKILL.md'), 'utf8');
+    const expRun = await readFile(join(repoRoot, 'lab-exp-run/SKILL.md'), 'utf8');
 
     expect(advice).toContain('vNext Stage Routing');
     expect(literature).toContain('research/literature-review.md');
@@ -82,6 +83,8 @@ describe('skill lint', () => {
     expect(deguard).toContain('defensive bloat');
     expect(handoff).toContain('Mode: expert-consultation');
     expect(handoff).toContain('Mode: reply');
+    expect(expRun).toContain('do not require a globally clean tree');
+    expect(expRun).toContain('Unrelated dirty files exist outside the current experiment');
 
     for (const template of [
       'objective.md.tmpl',

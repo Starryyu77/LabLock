@@ -1,6 +1,6 @@
 # Which Skill
 
-Use this as the routing table before invoking a LabLock skill.
+Use this as the routing table before invoking a LabLock skill. In vNext, prefer `/lab-advice` when the stage is unclear; it routes by workflow stage and expected artifact.
 
 For the full explanation of every skill, see `docs/skills-reference.md`.
 
@@ -17,7 +17,8 @@ For the full explanation of every skill, see `docs/skills-reference.md`.
 ## Planning
 
 - Idea is vague or too broad: `/lab-plan`
-- One experiment needs concrete variables, controls, metrics, and criteria: `/lab-plan-exp`
+- One experiment needs an interactive plan, stage goals, deliverables, and success criteria: `/lab-plan-exp`
+- Approved plan needs a step-by-step execution route: `/lab-roadmap`
 - Existing plan needs pressure test: `/lab-review`
 - Existing plan needs all review modes at once: `/lab-autoplan`
 - Research direction, story potential, common-problem abstraction, or anomaly meaning needs a taste lens: `/lab-taste`
@@ -37,8 +38,16 @@ For the full explanation of every skill, see `docs/skills-reference.md`.
 
 - Failure needs investigation before fixes: `/lab-debug`
 - Failure or anomaly needs papers/docs/forums/community search plus local code diagnosis: `/lab-research-debug`
-- Context must be sent to another AI or teammate: `/lab-handoff`
-- Another AI should write experiment code/scripts under a specific LabLock experiment: `/lab-handoff --type=implementation`
+- Execution task must be sent to another AI/coding agent: `/lab-handoff --mode=execution`
+- Problem must be sent to an advisor, expert, community, or external AI for judgment: `/lab-handoff --mode=expert-consultation`
+- Incoming handoff reply needs summary and next actions: `/lab-handoff --mode=reply`
+- Another AI should write experiment code/scripts under a specific LabLock experiment: `/lab-handoff --type=implementation` remains legacy-compatible
+
+## Monitoring And Degating
+
+- User asks "where are we" or "what is the current progress": `/lab-monitor`
+- Agent added broad gates, validators, retries, fallbacks, or abstractions unrelated to the goal: `/lab-deguard`
+- Graphical dashboard is optional/legacy visualization: `/lab-dashboard`
 
 ## Claims, Formalism, Paper
 

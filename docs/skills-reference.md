@@ -19,12 +19,13 @@ LabLock skills 分两类：
 | 目标 | 应使用 |
 |---|---|
 | 不知道该用哪个 LabLock skill | `/lab-advice` |
-| 打开、刷新或填充图形实验看板 | `/lab-dashboard` |
+| 旧图形实验看板 | `/lab-dashboard` |
 | 新科研仓库接入 LabLock | `/lab-init` |
 | 已有科研仓库非破坏性接入 | `/lab-migrate` |
 | 更新本机安装的 LabLock | `/lab-update` |
 | 模糊研究想法变成计划 | `/lab-plan` |
-| 单个实验设计 | `/lab-plan-exp` |
+| 实验计划与 Roadmap 设计 | `/lab-plan-exp` |
+| 已有计划拆成执行路线 | `/lab-roadmap` |
 | 审计划/实验设计 | `/lab-review` |
 | 四种视角完整压力测试 | `/lab-autoplan` |
 | 科研品味/方向选择/故事潜力视角 | `/lab-taste` |
@@ -35,6 +36,8 @@ LabLock skills 分两类：
 | drift 应该变成新实验 | `/lab-fork` |
 | debug 时保持目标对齐和最小验证 | `/lab-debug` |
 | 实验问题需要查论文/社区并结合代码诊断 | `/lab-research-debug` |
+| 查看实验当前目标、进度和初步结论 | `/lab-monitor` |
+| 破除 AI 过度防御性机制 | `/lab-deguard` |
 | 打包上下文或实验实现提示词给外部 AI/队友 | `/lab-handoff` |
 | 多实验结果综合成 claims | `/lab-synthesize` |
 | 实验失败/被 kill 后复盘 | `/lab-postmortem` |
@@ -51,12 +54,12 @@ LabLock skills 分两类：
 
 ### `/lab-advice`
 
-**作用**：当用户不知道应该使用哪个 LabLock skill 时，做只读路由建议。
+**作用**：作为 LabLock vNext 全局路由入口，判断用户所处阶段，推荐 skill、产物和下一步。
 
 **何时使用**：
 
 - 用户问“我该用哪个 skill？”。
-- 当前任务描述比较模糊，不确定是 init、migrate、plan、debug、audit 还是 paper。
+- 当前任务描述比较模糊，不确定处于研究方向、实验计划、handoff、监控、诊断、解释还是 paper 阶段。
 - 你怀疑没有合适的 LabLock skill，需要一个明确的 no-match 判断。
 
 **不要何时使用**：
@@ -69,22 +72,26 @@ LabLock skills 分两类：
 
 - 读取用户最新请求。
 - 必要时轻量检查 `.lablock/config.yaml`、`PROJECT.md`、`git status`。
+- 判断 vNext 阶段。
 - 给出一个最合适的 `/lab-*` skill。
+- 说明预期产物和下一步。
 - 如果请求含混，列出 2-3 个候选 skill 并问一个澄清问题。
 - 如果不属于 LabLock 范围，返回“没有合适的 LabLock skill”。
 
 **主要输出**：
 
 - 推荐 skill。
+- 所处阶段。
 - confidence。
 - 推荐理由。
+- 预期产物。
 - 可复制的下一步 prompt。
 
 **下一步**：
 
 - 用户确认后调用推荐的 skill。
 - 如果 no match，走普通 AI/CLI 工作流，而不是强行套 LabLock。
-- 如果是“让 AI 写当前实验代码/脚本”，推荐 `/lab-handoff --type=implementation`，生成给 coding agent 的约束提示词。
+- 如果是“让 AI 写当前实验代码/脚本”，推荐 `/lab-handoff --mode=execution`；旧流程仍可用 `/lab-handoff --type=implementation`。
 
 ### `/lab-init`
 
@@ -265,36 +272,70 @@ LabLock skills 分两类：
 
 ### `/lab-plan-exp`
 
-**作用**：设计一个具体实验。
+**作用**：把研究方向转成用户可确认、Agent 可执行、过程可监控的实验计划。
 
 **何时使用**：
 
-- 已经知道要测试哪个 hypothesis。
-- 需要明确 independent variable、dependent variable、controls、metrics、kill/success criteria。
-- 准备创建 `scope.lock` 前，需要先把实验设计写清楚。
+- Stage 1 已经形成研究方向、方法论或研究故事。
+- 用户需要通过交互澄清目标、约束、产物和可探索范围。
+- 需要一步步 Roadmap 和目标审查，再进入 handoff 或实验初始化。
 
 **不要何时使用**：
 
-- 研究问题仍很模糊。先用 `/lab-plan`。
-- 已经确定设计并要写文件。用 `/lab-exp-init`。
+- 研究问题仍很模糊。先用 `/lab-plan` 或 Stage 1 skills。
+- 已有计划只需要拆步骤。用 `/lab-roadmap`。
+- 用户要另一个 Agent 写代码。先完成 plan / roadmap，再用 `/lab-handoff --mode=execution`。
 
 **会做什么**：
 
-- 确定 IV、DV、control variables。
-- 询问用户是否已有变量命名；没有则提出 canonical variable、short token 和 paper label 方案。
-- 选择或提出实验 matrix，并给出 registry delta。
-- 确定 baseline 和 evaluation metrics。
-- 写 H0/H1 下的预期结果。
-- 设定 compute/time budget、kill criteria、success criteria。
+- 与用户交互，澄清总目标、阶段目标、约束和产物。
+- 形成 `plan.md` 草案。
+- 起草 Roadmap：阶段、步骤、输入、输出、验证点和用户确认点。
+- 提炼可用于 handoff 的 `objective.md` 摘要。
+- 审查目标是否清晰、可执行、可验证，且没有过度防御。
 
 **主要输出**：
 
-- `plans/` 下的实验设计草案。
+- `plans/<date>-<topic>-vnext-plan.md`。
+- 或 `experiments/<exp>/plan.md`、`roadmap.md`、`objective.md`。
 
 **下一步**：
 
-- `/lab-review --as=feasibility` 或 `/lab-autoplan`。
-- `/lab-exp-init` 创建实验文件和 `scope.lock`。
+- `/lab-roadmap` 继续细化路线。
+- `/lab-handoff --mode=execution` 交给 Agent 执行。
+- `/lab-exp-init` 创建实验文件。
+- `/lab-deguard` 检查防御性膨胀。
+
+### `/lab-roadmap`
+
+**作用**：把已确认的实验计划拆成可执行 Roadmap。
+
+**何时使用**：
+
+- 已有 `/lab-plan-exp` 草案，但还不够具体。
+- 需要明确 Step 1 / Step 2 / Step 3。
+- Handoff 前需要让 Agent 明确先后顺序、输入、输出和验证点。
+
+**不要何时使用**：
+
+- 研究方向还没确定。先用 `/lab-plan`。
+- 实验计划本身还没有被用户确认。先用 `/lab-plan-exp`。
+
+**会做什么**：
+
+- 为每一步写清目标、输入、动作、输出、验证方式和用户确认点。
+- 标记哪些步骤适合自动交给 Agent，哪些需要人工确认。
+- 标出可能的防御性膨胀，必要时建议 `/lab-deguard`。
+
+**主要输出**：
+
+- `plans/<date>-<topic>-roadmap.md`。
+- 或 `experiments/<exp>/roadmap.md`。
+
+**下一步**：
+
+- `/lab-handoff --mode=execution`。
+- `/lab-monitor` 跟踪执行进度。
 
 ### `/lab-review`
 
@@ -730,15 +771,81 @@ LabLock skills 分两类：
 - 需要外部 AI 时走 `/lab-handoff --type=debug`。
 - 实验应暂停/失败时走 `/lab-postmortem`。
 
-### `/lab-handoff`
+### `/lab-monitor`
 
-**作用**：把上下文或实验实现提示词打包给外部 AI、队友或另一个工具。
+**作用**：报告实验总目标、当前阶段目标、进度、初步结果和下一步。
 
 **何时使用**：
 
-- 要问 ChatGPT web、同事或另一个 agent。
+- 用户问“现在做到哪了”“有什么进展”“阶段性结论是什么”。
+- Agent 执行中需要过程监控。
+- Handoff 返回后，需要把结果挂回实验进展。
+
+**不要何时使用**：
+
+- 需要图形看板。`/lab-dashboard` 仍可作为 legacy/optional 工具。
+- 需要设计实验计划。用 `/lab-plan-exp` 或 `/lab-roadmap`。
+
+**会做什么**：
+
+- 读取 `objective.md`、`plan.md`、`roadmap.md`、`progress.md`、`results.md`、handoffs、reviews、recent commits。
+- 缺失信息写 unknown，不猜。
+- 区分事实、解释和未知。
+- 如发现防御性膨胀，建议 `/lab-deguard`。
+
+**主要输出**：
+
+- 对话中的快速状态回答。
+- 必要时写 `reviews/YYYY-MM-DD-<exp>-monitor.md`。
+
+**下一步**：
+
+- `/lab-handoff --mode=execution`。
+- `/lab-deguard`。
+- `/lab-research-debug`。
+- `/lab-postmortem` 或 `/lab-synthesize`。
+
+### `/lab-deguard`
+
+**作用**：识别并减少 AI Agent 生成的非目标相关防御性机制。
+
+**何时使用**：
+
+- Agent 加入大量 gate、validator、retry、fallback、policy check 或抽象层。
+- 进展停在流程建设，而不是研究目标。
+- 用户担心 AI 过度防御、偏离主线。
+
+**不要何时使用**：
+
+- 涉及 destructive git、secrets、privacy、data deletion 或不可逆外部副作用。
+- 研究目标本身需要安全检查或污染检测。
+
+**会做什么**：
+
+- 检查 plan、roadmap、handoff、progress、diff 或代码片段。
+- 对可疑机制分类：keep / simplify / remove / defer / clarify。
+- 说明它是否直接服务当前研究目标。
+- 保留基础安全边界。
+
+**主要输出**：
+
+- `reviews/YYYY-MM-DD-<exp>-deguard.md`。
+
+**下一步**：
+
+- 用户确认后再改代码或计划。
+- 必要时回到 `/lab-plan-exp` 或 `/lab-roadmap`。
+
+### `/lab-handoff`
+
+**作用**：统一处理 execution handoff、expert consultation、incoming reply ingestion 和 consultation summary。
+
+**何时使用**：
+
+- 要把执行任务交给另一个 AI/coding agent。
+- 要把问题交给导师、专家、reviewer、社区或外部 AI 判断。
+- 外部回复已经放入 `handoffs/incoming/`，需要总结和提炼下一步。
 - 需要 self-contained context，而不是让对方翻整个 repo。
-- debug/method/results/design/writing/implementation 任一场景。
 
 **不要何时使用**：
 
@@ -747,19 +854,22 @@ LabLock skills 分两类：
 
 **会做什么**：
 
-- 选择 handoff type：debug、method、results、design、writing、implementation。
-- 抽取 project background、formalism、claims、experiment、code/log/traceback/results。
-- `implementation` 类型会生成给 coding agent 的提示词，要求它读取实验文档、围绕研究目标写代码，并避免额外加入防御性 gate。
-- 写成单一 Markdown bundle。
+- 选择 mode：execution、expert-consultation、reply、summary。
+- execution mode 读取 objective / plan / roadmap，生成给 Agent 的执行任务包。
+- expert-consultation mode 生成给专家的咨询 brief，要求诊断、建议、风险和参考资料。
+- reply mode 读取 incoming 回复，写入 summary，并建议 progress 更新。
+- legacy `--type=implementation` 继续兼容 execution handoff。
 
 **主要输出**：
 
 - `handoffs/outgoing/YYYY-MM-DD-<topic>.md`。
+- `handoffs/summaries/YYYY-MM-DD-<topic>.md`。
 
 **下一步**：
 
-- 发送给外部 AI/队友。
-- 回来后把答复放入 `handoffs/incoming/` 或写 decision。
+- execution 后用 `/lab-monitor` 查看进展。
+- expert consultation 回复回来后，用 `/lab-handoff --mode=reply`。
+- 不自动应用外部回复中的代码或配置建议。
 
 ## Claim、Formalism 与 Paper
 

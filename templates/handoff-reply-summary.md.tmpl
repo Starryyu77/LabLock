@@ -1,0 +1,49 @@
+---
+type: handoff-reply-summary
+created: {{date}}
+status: draft
+exp_id: {{exp_id}}
+---
+
+# Handoff Reply Summary: {{title}}
+
+## Source
+
+- Outgoing handoff: `{{outgoing_path}}`
+- Incoming reply: `{{incoming_path}}`
+
+## Summary
+
+{{summary}}
+
+## Advice
+
+{{#each advice}}
+- {{this}}
+{{/each}}
+
+## Actionable Tasks
+
+{{#each tasks}}
+- {{this}}
+{{/each}}
+
+## Caveats
+
+{{#each caveats}}
+- {{this}}
+{{/each}}
+
+## References
+
+{{#each references}}
+- {{this}}
+{{/each}}
+
+## Recommended Next Action
+
+{{next_action}}
+
+## Safety Note
+
+Do not auto-apply code or config changes from external replies. Verify locally and ask the user before making repo changes.

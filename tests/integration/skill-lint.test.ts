@@ -60,4 +60,34 @@ describe('skill lint', () => {
     expect(template).toContain('## External Research Plan');
     expect(template).toContain('## Diagnostic Conclusion');
   });
+
+  test('vNext skeleton skills and templates are present', async () => {
+    const advice = await readFile(join(repoRoot, 'lab-advice/SKILL.md'), 'utf8');
+    const planExp = await readFile(join(repoRoot, 'lab-plan-exp/SKILL.md'), 'utf8');
+    const roadmap = await readFile(join(repoRoot, 'lab-roadmap/SKILL.md'), 'utf8');
+    const monitor = await readFile(join(repoRoot, 'lab-monitor/SKILL.md'), 'utf8');
+    const deguard = await readFile(join(repoRoot, 'lab-deguard/SKILL.md'), 'utf8');
+    const handoff = await readFile(join(repoRoot, 'lab-handoff/SKILL.md'), 'utf8');
+
+    expect(advice).toContain('vNext Stage Routing');
+    expect(planExp).toContain('Roadmap');
+    expect(roadmap).toContain('Step 名称');
+    expect(monitor).toContain('实验总目标');
+    expect(deguard).toContain('defensive bloat');
+    expect(handoff).toContain('Mode: expert-consultation');
+    expect(handoff).toContain('Mode: reply');
+
+    for (const template of [
+      'objective.md.tmpl',
+      'progress.md.tmpl',
+      'roadmap.md.tmpl',
+      'monitor.md.tmpl',
+      'deguard.md.tmpl',
+      'handoff-expert-consultation.md.tmpl',
+      'handoff-reply-summary.md.tmpl',
+    ]) {
+      const body = await readFile(join(repoRoot, 'templates', template), 'utf8');
+      expect(body.length).toBeGreaterThan(100);
+    }
+  });
 });

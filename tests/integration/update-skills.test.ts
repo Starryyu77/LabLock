@@ -76,8 +76,9 @@ describe('update-skills', () => {
     expect(payload.ref).toBe('codex/experiment-dashboard');
     expect(payload.steps.git_ref).toBe('would-run');
     expect(payload.steps.git_pull).toBe('would-run');
-    expect(payload.skill_update.results.some((r: any) => r.skill === 'lab-dashboard' && r.result === 'would-create:symlink')).toBe(true);
-    await expect(lstat(join(cwd, '.agents/skills/lab-dashboard'))).rejects.toThrow();
+    expect(payload.skill_update.results.some((r: any) => r.skill === 'lab-monitor' && r.result === 'would-create:symlink')).toBe(true);
+    expect(payload.skill_update.results.some((r: any) => r.skill === 'lab-dashboard')).toBe(false);
+    await expect(lstat(join(cwd, '.agents/skills/lab-monitor'))).rejects.toThrow();
   });
 
   test('update can refresh skills without pull or install', async () => {

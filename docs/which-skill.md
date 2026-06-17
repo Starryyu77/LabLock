@@ -23,7 +23,6 @@ For the full explanation of every skill, see `docs/skills-reference.md`.
 - One experiment needs an interactive plan, stage goals, deliverables, and success criteria: `/lab-plan-exp`
 - Approved plan needs a step-by-step execution route: `/lab-roadmap`
 - Existing plan needs pressure test: `/lab-review`
-- Existing plan needs all review modes at once: `/lab-autoplan`
 - Research direction, story potential, common-problem abstraction, or anomaly meaning needs a taste lens: `/lab-taste`
 
 ## Experiment Lifecycle
@@ -31,8 +30,6 @@ For the full explanation of every skill, see `docs/skills-reference.md`.
 - Create experiment files and `scope.lock`: `/lab-exp-init`
 - Optional Git branch isolation for collaboration/CI/archival history: `/lab-exp-start`
 - Start a training or evaluation run: `/lab-exp-run`
-- Commit produced a SCOPE-DRIFT warning: `/lab-guard`
-- Drift should become a new baseline: `/lab-fork`
 - Experiment is done, killed, or superseded: `/lab-exp-finalize`
 - Failed/killed/superseded experiment needs writeup: `/lab-postmortem`
 - Successful experiment should merge cleanly to main: `/lab-cleanup-pr`
@@ -50,7 +47,7 @@ For the full explanation of every skill, see `docs/skills-reference.md`.
 
 - User asks "where are we" or "what is the current progress": `/lab-monitor`
 - Agent added broad gates, validators, retries, fallbacks, or abstractions unrelated to the goal: `/lab-deguard`
-- Graphical dashboard is optional/legacy visualization: `/lab-dashboard`
+- Old graphical dashboard, guard, fork, and autoplan skill docs are archived under `archive/skills/`
 
 ## Claims, Formalism, Paper
 

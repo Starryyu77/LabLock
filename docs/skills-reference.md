@@ -11,7 +11,7 @@ LabLock skills 分两类：
 
 - 新项目用 `/lab-init`，旧项目用 `/lab-migrate`。
 - 实验开始前先设计，再创建 `scope.lock` 作为研究目标和实验 frame。
-- scope drift 默认是研究对齐提醒，不是本地硬阻断；需要分类时走 `/lab-guard`、`/lab-fork` 或 `lablock override`。
+- scope drift 默认是研究对齐提醒，不是本地硬阻断；vNext 优先用 `/lab-monitor` 或 `/lab-deguard` 回到目标，legacy `scope.lock` 分叉可用 `lablock fork` 或 `lablock override`。
 - 论文写作只基于 `claims.md` 和 evidence，不让 paper claim 脱离实验。
 
 ## 快速选择表
@@ -19,7 +19,6 @@ LabLock skills 分两类：
 | 目标 | 应使用 |
 |---|---|
 | 不知道该用哪个 LabLock skill | `/lab-advice` |
-| 旧图形实验看板 | `/lab-dashboard` |
 | 新科研仓库接入 LabLock | `/lab-init` |
 | 已有科研仓库非破坏性接入 | `/lab-migrate` |
 | 更新本机安装的 LabLock | `/lab-update` |
@@ -30,13 +29,10 @@ LabLock skills 分两类：
 | 实验计划与 Roadmap 设计 | `/lab-plan-exp` |
 | 已有计划拆成执行路线 | `/lab-roadmap` |
 | 审计划/实验设计 | `/lab-review` |
-| 四种视角完整压力测试 | `/lab-autoplan` |
 | 科研品味/方向选择/故事潜力视角 | `/lab-taste` |
 | 创建实验目录和 `scope.lock` | `/lab-exp-init` |
 | 明确需要 Git 实验分支 | `/lab-exp-start` |
 | 启动训练/实验运行 | `/lab-exp-run` |
-| commit 出现 SCOPE-DRIFT warning | `/lab-guard` |
-| drift 应该变成新实验 | `/lab-fork` |
 | debug 时保持目标对齐和最小验证 | `/lab-debug` |
 | 实验问题需要查论文/社区并结合代码诊断 | `/lab-research-debug` |
 | 查看实验当前目标、进度和初步结论 | `/lab-monitor` |
@@ -134,6 +130,8 @@ LabLock skills 分两类：
 - `/lab-exp-init` 创建第一个受控实验。
 
 ### `/lab-dashboard`
+
+**归档状态**：已移到 `archive/skills/lab-dashboard`，不再由 `lablock update-skills` 默认安装。vNext 监控主线是 `/lab-monitor`、`progress.md` 和后续 status/digest。
 
 **作用**：打开、刷新或填充图形实验看板。
 
@@ -477,7 +475,7 @@ LabLock skills 分两类：
 **不要何时使用**：
 
 - 还没有任何 plan 文件。先用 `/lab-plan`。
-- 想一次跑四种视角。用 `/lab-autoplan`。
+- 想一次跑四种视角。旧 `/lab-autoplan` 已归档；现在按需要多次运行 `/lab-review` 或加入 `/lab-taste`。
 
 **主要输出**：
 
@@ -489,6 +487,8 @@ LabLock skills 分两类：
 - `/lab-plan-exp` 或 `/lab-exp-init`。
 
 ### `/lab-autoplan`
+
+**归档状态**：已移到 `archive/skills/lab-autoplan`，不再由 `lablock update-skills` 默认安装。vNext 默认按阶段选择 `/lab-review`、`/lab-taste`、`/lab-plan-exp`，而不是一次性压力测试 bundle。
 
 **作用**：对同一个计划一次性跑 advisor、reviewer2、feasibility、novelty 四种 review。
 
@@ -569,7 +569,7 @@ LabLock skills 分两类：
 **不要何时使用**：
 
 - 只是创建 git branch。用 `/lab-exp-start`。
-- drift 已经发生且应该成为新实验。用 `/lab-fork`。
+- drift 已经发生且应该成为新实验。用 `lablock fork`；旧 `/lab-fork` skill 已归档。
 - 实验设计还没明确。先用 `/lab-plan-exp`。
 
 **会做什么**：
@@ -659,6 +659,8 @@ LabLock skills 分两类：
 
 ### `/lab-guard`
 
+**归档状态**：已移到 `archive/skills/lab-guard`，不再由 `lablock update-skills` 默认安装。vNext 默认使用 `/lab-deguard` 和 `/lab-monitor` 做目标对齐；旧 `scope.lock` drift CLI 仍保留。
+
 **作用**：把 SCOPE-DRIFT warning 按研究目标分类。
 
 **何时使用**：
@@ -687,11 +689,13 @@ LabLock skills 分两类：
 
 **下一步**：
 
-- `/lab-fork`。
+- `lablock fork` 或归档参考 `archive/skills/lab-fork`。
 - `lablock override --exp=... --reason=...`。
 - 继续实验或记录结果。
 
 ### `/lab-fork`
+
+**归档状态**：已移到 `archive/skills/lab-fork`，不再由 `lablock update-skills` 默认安装。旧 CLI `lablock fork` 仍保留给 legacy `scope.lock` 工作流。
 
 **作用**：把当前实验 drift 分叉成一个新实验。
 
@@ -888,7 +892,7 @@ LabLock skills 分两类：
 **下一步**：
 
 - 最小修复或最小 reproducer/probe。
-- 影响实验意义时走 `/lab-guard`。
+- 影响实验意义时先写清目标影响；legacy `scope.lock` 分类参考 `archive/skills/lab-guard` 或使用 `lablock override`。
 - 需要外部 AI 时走 `/lab-handoff --type=debug`。
 - 实验应暂停/失败时走 `/lab-postmortem`。
 
@@ -904,7 +908,7 @@ LabLock skills 分两类：
 
 **不要何时使用**：
 
-- 需要图形看板。`/lab-dashboard` 仍可作为 legacy/optional 工具。
+- 需要旧图形看板。参考 `archive/skills/lab-dashboard` 或直接运行 `lablock dashboard`；vNext 默认不用它做监控主线。
 - 需要设计实验计划。用 `/lab-plan-exp` 或 `/lab-roadmap`。
 
 **会做什么**：
@@ -1255,7 +1259,7 @@ LabLock skills 分两类：
 ### 实验 drift
 
 ```text
-pre-commit warns -> /lab-guard -> /lab-fork OR lablock override OR continue-with-note OR revert
+pre-commit warns -> /lab-monitor or /lab-deguard -> lablock fork OR lablock override OR continue-with-note OR revert
 ```
 
 ### 成功实验进入 main
@@ -1273,7 +1277,7 @@ pre-commit warns -> /lab-guard -> /lab-fork OR lablock override OR continue-with
 If the failure cause is unclear, diagnose before finalizing:
 
 ```text
-/lab-debug -> /lab-research-debug -> minimal fix OR /lab-guard OR /lab-postmortem
+/lab-debug -> /lab-research-debug -> minimal fix OR /lab-deguard OR /lab-postmortem
 ```
 
 When a surprising result may be more than a bug, insert `/lab-taste` before deciding the next experiment.

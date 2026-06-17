@@ -15,7 +15,6 @@ related-skills:
   - lab-monitor
   - lab-deguard
   - lab-exp-init
-  - lab-guard
   - lab-research-debug
   - lab-audit
 ---
@@ -58,7 +57,7 @@ Do not run expensive scans. Do not modify files.
 - LabLock itself should be upgraded from GitHub or refreshed locally: `/lab-update`
 - Read-only project health, weekly check, stale state: `/lab-audit`
 - Repo cleanup candidates, stale branches, oversized files, orphan files: `/lab-tidy`
-- Graphical board request: `/lab-dashboard` only as legacy/optional visualization, not vNext monitoring default
+- Graphical board request: explain that the old `/lab-dashboard` skill is archived; use `/lab-monitor` for vNext status
 
 ### Stage 1: Research direction formation
 
@@ -67,7 +66,7 @@ Do not run expensive scans. Do not modify files.
 - Literature and resources need a candidate methodology: `/lab-methodology-synthesis`
 - Direction needs a coherent Research Narrative or Lab Story: `/lab-research-story`
 - Existing plan or hypothesis needs advisor/reviewer2/feasibility/novelty review: `/lab-review`
-- Need all four review perspectives and a combined review bundle: `/lab-autoplan`
+- Need several review perspectives: route to `/lab-review` with the relevant mode; the old `/lab-autoplan` bundle is archived
 - Need a research taste lens for direction choice, story potential, common-problem abstraction, anomaly meaning, or "科研品味": `/lab-taste`
 
 ### Stage 2: Experiment plan and roadmap
@@ -106,8 +105,8 @@ Do not run expensive scans. Do not modify files.
 ### Stage 7: Agent behavior degating
 
 - Agent adds broad gates, validators, retries, fallbacks, abstractions, or policy checks unrelated to the objective: `/lab-deguard`
-- Commit produced a SCOPE-DRIFT warning in a legacy/lock flow: `/lab-guard`
-- Drift should become a new experiment baseline in legacy/lock flow: `/lab-fork`
+- Legacy `scope.lock` drift needs old guidance: mention archived `archive/skills/lab-guard`; prefer `/lab-deguard` or `/lab-monitor` for vNext alignment
+- Drift should become a new experiment baseline in a legacy/lock flow: use CLI `lablock fork`; the old `/lab-fork` skill is archived
 
 ### Stage 8: Paper and knowledge capture
 

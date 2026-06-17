@@ -56,6 +56,31 @@ describe('update-skills', () => {
     await expect(lstat(join(cwd, '.agents/skills/lab-update'))).rejects.toThrow();
   });
 
+  test('update dry-run can target an explicit preview ref', async () => {
+    const out = await run([
+      process.execPath,
+      lablock,
+      'update',
+      '--source',
+      repoRoot,
+      '--ref',
+      'codex/experiment-dashboard',
+      '--host',
+      'codex',
+      '--scope',
+      'project',
+      '--dry-run',
+      '--json',
+    ], cwd);
+    const payload = JSON.parse(out.stdout);
+    expect(payload.ref).toBe('codex/experiment-dashboard');
+    expect(payload.steps.git_ref).toBe('would-run');
+    expect(payload.steps.git_pull).toBe('would-run');
+    expect(payload.skill_update.results.some((r: any) => r.skill === 'lab-monitor' && r.result === 'would-create:symlink')).toBe(true);
+    expect(payload.skill_update.results.some((r: any) => r.skill === 'lab-dashboard')).toBe(false);
+    await expect(lstat(join(cwd, '.agents/skills/lab-monitor'))).rejects.toThrow();
+  });
+
   test('update can refresh skills without pull or install', async () => {
     const out = await run([
       process.execPath,

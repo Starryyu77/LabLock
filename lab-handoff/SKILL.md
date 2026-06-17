@@ -1,34 +1,111 @@
 ---
 name: lab-handoff
 description: |
-  Package self-contained context for another AI or teammate. Use for "handoff", "ask another AI", "send to ChatGPT", or "package context". Modes: debug, method, results, design, writing. Writes handoffs/outgoing/.
+  Package execution tasks or expert consultation briefs, then process replies. Use for handoff, implementation prompt, external expert, advisor, community, incoming reply, or consultation summary. Writes handoffs/.
 disable-model-invocation: false
 related-skills:
   - lab-debug
+  - lab-roadmap
+  - lab-monitor
 ---
 
 # /lab-handoff
 
-You are packaging context for an external AI. The goal: produce a single self-contained markdown file that an external AI (which has no access to the user's local files) can read and answer well.
+You are the LabLock handoff orchestration entrypoint. The goal is to package context for another agent, external expert, advisor, community, or external AI, then process replies back into the experiment workflow.
 
 The user typically arrives here when:
 
-- They've hit a debugging wall and want a second opinion (`/lab-debug` Phase 6 → `/lab-handoff`)
-- They want a method check or formalism review from a stronger model
-- They want help writing a paper section
-- They want design feedback
+- They want another AI/coding agent to execute a task.
+- They need an external expert, advisor, reviewer, community, or stronger model to judge a problem.
+- They have an incoming reply and need it summarized into next actions.
+- They've hit a debugging wall and want a second opinion.
+- They want method, result, design, writing, or implementation feedback.
 
 ## Pre-flight
 
 Required:
 
-- `--type=<mode>`: `debug | method | results | design | writing`. If user didn't specify, ask which.
+- `--mode=<mode>`: `execution | expert-consultation | reply | summary`.
+- Legacy `--type=<mode>` remains acceptable for existing workflows: `debug | method | results | design | writing | implementation`.
 - `--topic=<short-name>`: used in the filename. Slugified.
 
 Optional:
 
 - `--exp=<exp-id>`: if the handoff is about a specific experiment. Auto-detected from `.lablock/state/current-exp` if not given.
 - `--branch`: after writing, also push to `handoff/<date>-<topic>` branch and print URL.
+
+Template-backed draft helpers:
+
+```bash
+lablock handoff --mode=execution --exp <exp-id> --topic <topic>
+lablock handoff --mode=expert-consultation --topic <topic>
+lablock handoff --mode=reply --topic <topic> --incoming <path> --outgoing <path>
+```
+
+## vNext Modes
+
+### Mode: execution
+
+Use this when the recipient should do work: implement code, run analysis, write a report, inspect a bug, or produce a concrete artifact.
+
+Read when available:
+
+- `experiments/<exp>/objective.md`
+- `experiments/<exp>/plan.md`
+- `experiments/<exp>/roadmap.md`
+- `experiments/<exp>/progress.md`
+- legacy `hypothesis.md` and `.lablock/locks/<exp>.scope.lock`
+
+The bundle must include:
+
+- Research objective to preserve.
+- Current stage goal.
+- Roadmap step being handed off.
+- Allowed changes.
+- Expected output.
+- Verification method.
+- Writeback location.
+- Degating instruction: do not add broad defensive gates unless required by the objective or basic safety.
+
+Legacy `/lab-handoff --type=implementation` maps to this mode.
+
+### Mode: expert-consultation
+
+Use this when the recipient is not expected to edit the repo, but should judge a problem and propose solution paths.
+
+The bundle must include:
+
+- What we need from the expert.
+- Short research context.
+- The specific problem.
+- Evidence already collected.
+- Candidate explanations.
+- Constraints and assumptions.
+- Questions for the expert.
+- Desired output format: diagnosis, recommended next steps, risks, caveats, references.
+
+This mode is for advisors, domain experts, reviewers, open-source community posts, or external AI.
+
+### Mode: reply
+
+Use this when a response has been saved under:
+
+```text
+handoffs/incoming/
+```
+
+The skill should:
+
+1. Read the original outgoing handoff if available.
+2. Read the incoming reply.
+3. Summarize the reply into advice, actionable tasks, caveats, references, and open questions.
+4. Write a summary under `handoffs/summaries/`.
+5. Update or recommend an update to `experiments/<exp>/progress.md`.
+6. Never auto-apply code or config changes from the reply.
+
+### Mode: summary
+
+Use this to synthesize multiple outgoing/incoming handoffs for one experiment into a single next-action brief.
 
 ## Common context (all modes)
 
@@ -57,6 +134,55 @@ Every handoff bundle starts with:
 ```
 
 This frames the AI before mode-specific content.
+
+## Mode: implementation
+
+Use this when the user needs another AI/coding agent to write experiment code or scripts. LabLock still does not implement the code itself; it writes the prompt that keeps that coding work aligned to the experiment.
+
+Add:
+
+```markdown
+## Coding task
+
+<specific implementation request>
+
+## Research objective to preserve
+
+- Experiment: <exp-id>
+- Hypothesis: <from hypothesis.md>
+- Primary intervention: <from controlled_changes>
+- Planned bundle: <if any>
+- Success criteria: <from scope.lock>
+
+## Source of truth
+
+The coding agent must read these before editing:
+- `experiments/<exp>/hypothesis.md`
+- `experiments/<exp>/config.yaml`
+- `.lablock/locks/<exp>.scope.lock`
+- <any user-specified design/doc paths>
+
+## Allowed changes
+
+- Experiment-local scripts/configs under `experiments/<exp>/`
+- Shared code only when required to test the hypothesis
+- Tests or probes that directly verify the research effect
+
+## Avoid
+
+- Adding broad defensive gates, abstractions, retries, validators, or policy checks unless required by the experiment
+- Reframing the research goal
+- Moving run outputs outside the experiment folder
+
+## Expected output
+
+- Code changes made
+- Verification command(s)
+- Where results/logs should be written
+- Any drift that should be classified with `/lab-guard`
+```
+
+If the user asks for "AI 写代码/脚本", prefer this mode over inventing a new LabLock implementation skill.
 
 ## Mode: debug
 

@@ -11,7 +11,7 @@ related-skills:
 
 # /lab-review
 
-You are reviewing a plan or experiment design from a specific perspective. The mode determines your stance and what you focus on.
+You are reviewing a plan or experiment design from a specific perspective. Keep the critical stance, but the output should help the researcher move toward the original goal. A review is a risk note and next-action generator, not a gate.
 
 ## Pre-flight
 
@@ -35,7 +35,7 @@ Forcing questions:
 5. **What's the least interesting positive outcome?** If H1 is true but barely, is the result still worth publishing?
 6. **Who else is doing this?** If the user doesn't know, that's a flag.
 
-Don't grade. Make 3-5 specific challenges. End with: "Recommendation: proceed | reframe | shelve."
+Don't grade. Make 3-5 specific challenges. End with: "Next action: proceed | reframe | pause", plus the smallest change that would better align the plan with the research arc.
 
 ## Mode: reviewer2
 
@@ -48,9 +48,9 @@ You are an adversarial reviewer at a top-tier venue (NeurIPS / CVPR / ICLR). You
 5. **Generalization** — single dataset, single seed, single architecture? Why should anyone believe this generalizes?
 6. **Statistical rigor** — are mean ± std reported? How many seeds? Is the metric difference within noise?
 
-Format: 6 short sections, one per attack vector. Each ends with "Severity: minor / moderate / showstopper" and a fix suggestion.
+Format: 6 short sections, one per attack vector. Each ends with "Risk: minor / moderate / severe" and a concrete next action.
 
-End with: "If submitted as-is, my prediction: borderline reject / weak reject / strong reject."
+End with: "If submitted as-is, my prediction: borderline reject / weak reject / strong reject" and "Research next action: <what to change or run next>."
 
 ## Mode: feasibility
 
@@ -62,7 +62,7 @@ You are an accountant. You don't care about novelty or science. You care about w
 4. **Code**: Does the implementation exist? Or does the user need to write a substantial new module?
 5. **People**: Solo or collaborative? If collaborative, are dependencies clear?
 
-Format: a table with columns "Resource | Required | Available | Gap | Mitigation". End with: "Verdict: feasible / tight / infeasible."
+Format: a table with columns "Resource | Required | Available | Gap | Mitigation". End with: "Feasibility note: feasible / tight / infeasible" and "Next action: <smaller run, staged run, or proceed>."
 
 If infeasible, propose a smaller scope.
 
@@ -89,7 +89,7 @@ Format:
 - ...
 ```
 
-End with: "Novelty assessment: clear / contested / probably done."
+End with: "Novelty assessment: clear / contested / probably done" and "Positioning action: <differentiate, narrow, or proceed>."
 
 ## Step: Save the report
 
@@ -116,16 +116,16 @@ created: <date>
 
 After saving:
 
-- If `advisor` flagged "reframe": suggest re-running `/lab-plan` with the reframed question.
-- If `reviewer2` found showstoppers: suggest revising the plan/design.
-- If `feasibility` flagged "infeasible": suggest scoping down.
-- If `novelty` found "probably done": suggest reading the prior work and reframing.
+- If `advisor` suggests "reframe": suggest re-running `/lab-plan` with the reframed question.
+- If `reviewer2` found severe risks: suggest the smallest design revision that would still test the research goal.
+- If `feasibility` says "infeasible": suggest a staged or smaller run.
+- If `novelty` says "probably done": suggest a narrower positioning or prior-work reading task.
 
 If all four reviews are clean, suggest `/lab-exp-init` (if reviewing an exp design) or proceeding with execution.
 
 ## Don't
 
-- Don't be polite for politeness's sake. The user invoked you for friction.
+- Don't be polite for politeness's sake. The user invoked you for useful friction.
 - Don't review more than one perspective at a time. If user wants all four, that's `/lab-autoplan`.
 - Don't make up papers in `novelty` mode—if `lit/` is empty, say so and stop.
-- Don't grade ("8/10"). Use specific severity levels (minor / moderate / showstopper) tied to specific issues.
+- Don't grade ("8/10"). Use concrete risks and next actions tied to the research goal.

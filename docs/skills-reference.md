@@ -10,8 +10,8 @@ LabLock skills 分两类：
 使用原则：
 
 - 新项目用 `/lab-init`，旧项目用 `/lab-migrate`。
-- 实验开始前先设计，再创建 `scope.lock`。
-- scope drift 不要绕过 hook，要走 `/lab-guard`、`/lab-fork` 或 `lablock override`。
+- 实验开始前先设计，再创建 `scope.lock` 作为研究目标和实验 frame。
+- scope drift 默认是研究对齐提醒，不是本地硬阻断；vNext 优先用 `/lab-monitor` 或 `/lab-deguard` 回到目标，legacy `scope.lock` 分叉可用 `lablock fork` 或 `lablock override`。
 - 论文写作只基于 `claims.md` 和 evidence，不让 paper claim 脱离实验。
 
 ## 快速选择表
@@ -23,16 +23,21 @@ LabLock skills 分两类：
 | 已有科研仓库非破坏性接入 | `/lab-migrate` |
 | 更新本机安装的 LabLock | `/lab-update` |
 | 模糊研究想法变成计划 | `/lab-plan` |
-| 单个实验设计 | `/lab-plan-exp` |
+| idea 需要文献脉络、缺口和定位 | `/lab-literature-research` |
+| 文献和资源需要综合成候选方法论 | `/lab-methodology-synthesis` |
+| 方向需要写成 Research Narrative / Lab Story | `/lab-research-story` |
+| 实验计划与 Roadmap 设计 | `/lab-plan-exp` |
+| 已有计划拆成执行路线 | `/lab-roadmap` |
 | 审计划/实验设计 | `/lab-review` |
-| 四种视角完整压力测试 | `/lab-autoplan` |
+| 科研品味/方向选择/故事潜力视角 | `/lab-taste` |
 | 创建实验目录和 `scope.lock` | `/lab-exp-init` |
-| 创建实验分支 | `/lab-exp-start` |
+| 明确需要 Git 实验分支 | `/lab-exp-start` |
 | 启动训练/实验运行 | `/lab-exp-run` |
-| commit 被 SCOPE-DRIFT 拦住 | `/lab-guard` |
-| drift 应该变成新实验 | `/lab-fork` |
-| debug 前先系统调查 | `/lab-debug` |
-| 打包上下文给外部 AI/队友 | `/lab-handoff` |
+| debug 时保持目标对齐和最小验证 | `/lab-debug` |
+| 实验问题需要查论文/社区并结合代码诊断 | `/lab-research-debug` |
+| 查看实验当前目标、进度和初步结论 | `/lab-monitor` |
+| 破除 AI 过度防御性机制 | `/lab-deguard` |
+| 打包上下文或实验实现提示词给外部 AI/队友 | `/lab-handoff` |
 | 多实验结果综合成 claims | `/lab-synthesize` |
 | 实验失败/被 kill 后复盘 | `/lab-postmortem` |
 | 更新 formalism/loss/algorithm | `/lab-formalism-update` |
@@ -48,12 +53,12 @@ LabLock skills 分两类：
 
 ### `/lab-advice`
 
-**作用**：当用户不知道应该使用哪个 LabLock skill 时，做只读路由建议。
+**作用**：作为 LabLock vNext 全局路由入口，判断用户所处阶段，推荐 skill、产物和下一步。
 
 **何时使用**：
 
 - 用户问“我该用哪个 skill？”。
-- 当前任务描述比较模糊，不确定是 init、migrate、plan、debug、audit 还是 paper。
+- 当前任务描述比较模糊，不确定处于研究方向、实验计划、handoff、监控、诊断、解释还是 paper 阶段。
 - 你怀疑没有合适的 LabLock skill，需要一个明确的 no-match 判断。
 
 **不要何时使用**：
@@ -66,21 +71,26 @@ LabLock skills 分两类：
 
 - 读取用户最新请求。
 - 必要时轻量检查 `.lablock/config.yaml`、`PROJECT.md`、`git status`。
+- 判断 vNext 阶段。
 - 给出一个最合适的 `/lab-*` skill。
+- 说明预期产物和下一步。
 - 如果请求含混，列出 2-3 个候选 skill 并问一个澄清问题。
 - 如果不属于 LabLock 范围，返回“没有合适的 LabLock skill”。
 
 **主要输出**：
 
 - 推荐 skill。
+- 所处阶段。
 - confidence。
 - 推荐理由。
+- 预期产物。
 - 可复制的下一步 prompt。
 
 **下一步**：
 
 - 用户确认后调用推荐的 skill。
 - 如果 no match，走普通 AI/CLI 工作流，而不是强行套 LabLock。
+- 如果是“让 AI 写当前实验代码/脚本”，推荐 `/lab-handoff --mode=execution`；旧流程仍可用 `/lab-handoff --type=implementation`。
 
 ### `/lab-init`
 
@@ -100,6 +110,7 @@ LabLock skills 分两类：
 **会做什么**：
 
 - 创建 `.lablock/` 配置、locks、changes、state。
+- 创建 `.lablock/naming.yaml`、`.lablock/variables.yaml`、`.lablock/matrices.yaml`，并记录 minimal / paper-aligned / matrix-first 命名 profile。
 - 创建 `PROJECT.md`、`formalism.md`、`claims.md`、`INDEX.md`、`MAP.md`。
 - 创建 `experiments/`、`decisions/`、`reviews/`、`handoffs/`、`paper/` 等目录。
 - 安装 git hooks。
@@ -118,6 +129,44 @@ LabLock skills 分两类：
 - `/lab-plan-exp` 设计第一个实验。
 - `/lab-exp-init` 创建第一个受控实验。
 
+### `/lab-dashboard`
+
+**归档状态**：已移到 `archive/skills/lab-dashboard`，不再由 `lablock update-skills` 默认安装。vNext 监控主线是 `/lab-monitor`、`progress.md` 和后续 status/digest。
+
+**作用**：打开、刷新或填充图形实验看板。
+
+**何时使用**：
+
+- 用户想看当前仓库的实验看板。
+- 用户想把一个新实验或子实验加入看板。
+- 用户想用图形方式理解多个实验线的规划、进度和下一步。
+
+**不要何时使用**：
+
+- 仓库还没有接入 LabLock。新仓库用 `/lab-init`，旧仓库用 `/lab-migrate`。
+- 用户只有模糊想法，还没形成具体实验。先用 `/lab-plan-exp`。
+- 想直接改生成后的 HTML。看板是派生物，应从实验文件刷新。
+
+**会做什么**：
+
+- 运行 `lablock dashboard --json` 读取当前实验状态。
+- 运行 `lablock dashboard --open` 生成并打开 `.lablock/dashboard/index.html`。
+- 当用户要添加新实验时，收集缺失字段并运行 `lablock exp-init` 创建真实 experiment node。
+- 当用户要把旧 plan、旧 run、旧结果加入看板时，转到 `/lab-migrate` 或运行 `lablock migrate-node` 创建 mirror node。
+- 创建后重新生成看板。
+
+**主要输出**：
+
+- `.lablock/dashboard/data.json`。
+- `.lablock/dashboard/index.html`。
+- 必要时新增 `experiments/<exp>-<shortname>/` 和 `.lablock/locks/<exp>.scope.lock`。
+
+**下一步**：
+
+- 审阅看板。
+- 提交新实验节点。
+- 默认在实验文件夹内继续；需要 Git 历史隔离时再用 `/lab-exp-start`。
+
 ### `/lab-migrate`
 
 **作用**：把已有科研仓库非破坏性接入 LabLock。
@@ -127,6 +176,7 @@ LabLock skills 分两类：
 - 仓库已经有自己的 `scripts/`、`configs/`、`runs/`、`outputs/`、`notes/`、`paper/`。
 - 你不想破坏旧结构，只想从现在开始让未来实验可审计。
 - 你需要先知道哪些东西是旧实验、当前活跃实验、artifact、shared code。
+- 你希望旧 plan / run / result 能出现在 LabLock dashboard、audit、synthesis 或 paper workflow 里。
 
 **不要何时使用**：
 
@@ -137,19 +187,22 @@ LabLock skills 分两类：
 
 - 只读盘点仓库结构、git history、旧实验资产和风险面。
 - 把材料分成 `control-plane`、`shared-code`、`legacy-experiment`、`active-experiment-candidate`、`artifact`、`unknown`。
-- 写迁移计划。
+- 写迁移计划和 Legacy Experiment Import Table。
 - 只有用户明确同意后，才用 `warn-only` 初始化 LabLock。
-- 推荐只先锁一个当前活跃实验，不批量回填全部历史实验。
+- 只有用户明确同意后，才用 `lablock migrate-node` 把选中的旧计划/旧实验/旧 run 导入为 LabLock mirror node。
+- 推荐只导入会被 dashboard/audit 使用的旧材料，再锁一个当前活跃实验。
 
 **主要输出**：
 
 - `reviews/migration-YYYY-MM-DD.md` 或 `LABLOCK_MIGRATION_PLAN.md`。
+- 必要时新增 `experiments/<exp>-<shortname>/` 和 `.lablock/locks/<exp>.scope.lock`。
 
 **下一步**：
 
 - 审阅迁移计划。
 - 同意后初始化 LabLock。
-- 用 `/lab-exp-init` 创建第一个 active experiment 的 `scope.lock`。
+- 确认导入的低置信度 legacy nodes。
+- 用 `/lab-exp-init` 创建或细化第一个强约束 active experiment 的 `scope.lock`。
 
 ### `/lab-update`
 
@@ -169,6 +222,7 @@ LabLock skills 分两类：
 **会做什么**：
 
 - 运行 `lablock update`。
+- 可选 `--ref`：先 fetch/switch 到用户明确指定的 preview branch、tag 或 commit。
 - 在 canonical source 中 `git pull --ff-only`。
 - 运行 `bun install`。
 - 刷新 `~/.claude/skills/lab-*` 和 `~/.agents/skills/lab-*`。
@@ -217,36 +271,190 @@ LabLock skills 分两类：
 - `/lab-review` 审计划。
 - `/lab-plan-exp` 设计第一个实验。
 
-### `/lab-plan-exp`
+### `/lab-literature-research`
 
-**作用**：设计一个具体实验。
+**作用**：把早期 idea、关键词、异常结果或初步假设放进已有研究脉络中。
 
 **何时使用**：
 
-- 已经知道要测试哪个 hypothesis。
-- 需要明确 independent variable、dependent variable、controls、metrics、kill/success criteria。
-- 准备创建 `scope.lock` 前，需要先把实验设计写清楚。
+- 需要知道相关论文、方法簇、benchmark、开源实现和缺口。
+- Stage 1 还没有形成清晰方法论。
+- 用户问“这个方向有哪些相关工作”“有没有类似现象”。
 
 **不要何时使用**：
 
-- 研究问题仍很模糊。先用 `/lab-plan`。
-- 已经确定设计并要写文件。用 `/lab-exp-init`。
+- 已经有明确方法和实验目标。用 `/lab-plan-exp`。
+- 需要本地代码诊断和社区 issue 搜索。用 `/lab-research-debug`。
 
 **会做什么**：
 
-- 确定 IV、DV、control variables。
-- 确定 baseline 和 evaluation metrics。
-- 写 H0/H1 下的预期结果。
-- 设定 compute/time budget、kill criteria、success criteria。
+- 梳理研究问题脉络。
+- 聚合关键文献簇和方法线索。
+- 区分已验证事实、作者 claim、推断和未知。
+- 提出可进入方法论综合的缺口与机会。
 
 **主要输出**：
 
-- `plans/` 下的实验设计草案。
+- `research/literature-review.md`。
+- 或 `lit/YYYY-MM-DD-<topic>-literature-review.md`。
+
+**草稿命令**：
+
+- `lablock draft literature-review --topic <topic>`。
 
 **下一步**：
 
-- `/lab-review --as=feasibility` 或 `/lab-autoplan`。
-- `/lab-exp-init` 创建实验文件和 `scope.lock`。
+- `/lab-methodology-synthesis`。
+- `/lab-taste`。
+- `/lab-plan`。
+
+### `/lab-methodology-synthesis`
+
+**作用**：把文献、开源实现、已有实验、社区经验和工程约束综合成候选创新方法论。
+
+**何时使用**：
+
+- 已有文献调研，需要形成 2-3 条可比较的方法路线。
+- 用户想从多个资源中提炼创新点。
+- 需要决定哪条路线进入第一轮实验。
+
+**不要何时使用**：
+
+- 没有相关文献和背景。先用 `/lab-literature-research`。
+- 已经确定实验目标，只缺执行路线。用 `/lab-roadmap`。
+
+**会做什么**：
+
+- 提炼共性问题和设计原则。
+- 形成候选方法、依赖、适用范围和风险。
+- 明确 planned intervention 边界，避免把复杂性误当成创新。
+- 推荐第一轮实验路线。
+
+**主要输出**：
+
+- `research/methodology.md`。
+
+**草稿命令**：
+
+- `lablock draft methodology --topic <topic>`。
+
+**下一步**：
+
+- `/lab-research-story`。
+- `/lab-taste`。
+- `/lab-plan` 或 `/lab-plan-exp`。
+
+### `/lab-research-story`
+
+**作用**：把研究方向写成 Research Narrative / Lab Story，连接共性问题、方法思想、实验路线和 claim 潜力。
+
+**何时使用**：
+
+- 已有文献或方法论，需要形成可以进入计划和论文的叙述骨架。
+- 用户想把“方法 A 在任务 B 得到结果 C”提升为共性问题叙述。
+- 实验结果出现后，需要重新组织研究故事。
+
+**不要何时使用**：
+
+- 需要查文献。先用 `/lab-literature-research`。
+- 需要具体实验路线。用 `/lab-plan-exp`。
+- 要写正式论文段落。用 `/lab-paper-write`。
+
+**会做什么**：
+
+- 写清共性问题、为什么现在重要、方法思想、证据路径和 claim 潜力。
+- 标注过度 claim、fashion/status bias 和工程化叙述风险。
+- 产出能喂给 `/lab-plan` 或 `/lab-plan-exp` 的故事骨架。
+
+**主要输出**：
+
+- `research/story.md`。
+
+**草稿命令**：
+
+- `lablock draft research-story --topic <topic>`。
+
+**下一步**：
+
+- `/lab-plan`。
+- `/lab-plan-exp`。
+- `/lab-synthesize`。
+
+### `/lab-plan-exp`
+
+**作用**：把研究方向转成用户可确认、Agent 可执行、过程可监控的实验计划。
+
+**何时使用**：
+
+- Stage 1 已经形成研究方向、方法论或研究故事。
+- 用户需要通过交互澄清目标、约束、产物和可探索范围。
+- 需要一步步 Roadmap 和目标审查，再进入 handoff 或实验初始化。
+
+**不要何时使用**：
+
+- 研究问题仍很模糊。先用 `/lab-plan` 或 Stage 1 skills。
+- 已有计划只需要拆步骤。用 `/lab-roadmap`。
+- 用户要另一个 Agent 写代码。先完成 plan / roadmap，再用 `/lab-handoff --mode=execution`。
+
+**会做什么**：
+
+- 与用户交互，澄清总目标、阶段目标、约束和产物。
+- 形成 `plan.md` 草案。
+- 起草 Roadmap：阶段、步骤、输入、输出、验证点和用户确认点。
+- 提炼可用于 handoff 的 `objective.md` 摘要。
+- 审查目标是否清晰、可执行、可验证，且没有过度防御。
+
+**主要输出**：
+
+- `plans/<date>-<topic>-vnext-plan.md`。
+- 或 `experiments/<exp>/plan.md`、`roadmap.md`、`objective.md`。
+
+**草稿命令**：
+
+- `lablock draft objective --exp <exp-id> --topic <topic>`。
+- `lablock draft roadmap --exp <exp-id> --topic <topic>`。
+
+**下一步**：
+
+- `/lab-roadmap` 继续细化路线。
+- `/lab-handoff --mode=execution` 交给 Agent 执行。
+- `/lab-exp-init` 创建实验文件。
+- `/lab-deguard` 检查防御性膨胀。
+
+### `/lab-roadmap`
+
+**作用**：把已确认的实验计划拆成可执行 Roadmap。
+
+**何时使用**：
+
+- 已有 `/lab-plan-exp` 草案，但还不够具体。
+- 需要明确 Step 1 / Step 2 / Step 3。
+- Handoff 前需要让 Agent 明确先后顺序、输入、输出和验证点。
+
+**不要何时使用**：
+
+- 研究方向还没确定。先用 `/lab-plan`。
+- 实验计划本身还没有被用户确认。先用 `/lab-plan-exp`。
+
+**会做什么**：
+
+- 为每一步写清目标、输入、动作、输出、验证方式和用户确认点。
+- 标记哪些步骤适合自动交给 Agent，哪些需要人工确认。
+- 标出可能的防御性膨胀，必要时建议 `/lab-deguard`。
+
+**主要输出**：
+
+- `plans/<date>-<topic>-roadmap.md`。
+- 或 `experiments/<exp>/roadmap.md`。
+
+**草稿命令**：
+
+- `lablock draft roadmap --exp <exp-id> --topic <topic>`。
+
+**下一步**：
+
+- `/lab-handoff --mode=execution`。
+- `/lab-monitor` 跟踪执行进度。
 
 ### `/lab-review`
 
@@ -267,7 +475,7 @@ LabLock skills 分两类：
 **不要何时使用**：
 
 - 还没有任何 plan 文件。先用 `/lab-plan`。
-- 想一次跑四种视角。用 `/lab-autoplan`。
+- 想一次跑四种视角。旧 `/lab-autoplan` 已归档；现在按需要多次运行 `/lab-review` 或加入 `/lab-taste`。
 
 **主要输出**：
 
@@ -280,12 +488,14 @@ LabLock skills 分两类：
 
 ### `/lab-autoplan`
 
+**归档状态**：已移到 `archive/skills/lab-autoplan`，不再由 `lablock update-skills` 默认安装。vNext 默认按阶段选择 `/lab-review`、`/lab-taste`、`/lab-plan-exp`，而不是一次性压力测试 bundle。
+
 **作用**：对同一个计划一次性跑 advisor、reviewer2、feasibility、novelty 四种 review。
 
 **何时使用**：
 
 - 准备投入较多时间/GPU 前。
-- 需要 go/no-go 判断。
+- 需要完整 alignment / risk note。
 - 你想把多个 review 结果合成一个 dashboard。
 
 **不要何时使用**：
@@ -297,7 +507,7 @@ LabLock skills 分两类：
 
 - 生成四份 mode-specific review。
 - 汇总成一个 dashboard。
-- 给出 proceed / revise / no-go 建议。
+- 给出 ON-TRACK / NEEDS-FOCUS / HIGH-RISK alignment note 和下一步动作。
 
 **主要输出**：
 
@@ -308,6 +518,41 @@ LabLock skills 分两类：
 
 - 修改实验设计。
 - `/lab-exp-init`。
+
+### `/lab-taste`
+
+**作用**：给计划、实验、结果或方向选择加一个“科研品味”视角。它关注这个具体工作是否触碰了重要问题、能否抽象成共性结构、是否有更强的研究故事，以及异常结果究竟像 bug、噪声还是值得隔离的新现象。
+
+**何时使用**：
+
+- 你想问“这个问题值得研究吗？”。
+- 一个实验结果不符合预期，需要判断它是 bug、无意义波动，还是可能的新现象。
+- 一个 plan 看起来能跑，但不知道能不能讲出更大的研究故事。
+- 你想避免只追热门/高级范式，也想避免把实际问题过早贬成“只是工程”。
+
+**会做什么**：
+
+- 读取 `PROJECT.md`、目标 plan/experiment/result、相关 `scope.lock`、`claims.md` 和已有 `lit/` 记录。
+- 用 Hamming 的重要问题与勇气、Graham 的简洁/启发性/适用范围、Bourdieu 的社会品味批判，以及 vibe-coding 时代“操作便宜、判断稀缺”的视角做分析。
+- 输出重要问题、共性结构、right problem、story potential、anomaly lens、social taste check、courage check。
+- 给出 1-3 个更强 reframe 和一个下一步动作。
+
+**不要何时使用**：
+
+- 你需要严格 novelty 检查。用 `/lab-review --as=novelty`。
+- 你需要资源可行性判断。用 `/lab-review --as=feasibility`。
+- 你需要正式 claim/evidence 合成。用 `/lab-synthesize`。
+- 你想让系统替你做最终方向决定。`/lab-taste` 是视角，不是 gate。
+
+**主要输出**：
+
+- `reviews/YYYY-MM-DD-<topic>-taste.md`。
+
+**下一步**：
+
+- 如果 reframe 指向新实验，用 `/lab-plan-exp`。
+- 如果需要把多个结果串成 claim，用 `/lab-synthesize`。
+- 如果核心问题是 feasibility、novelty 或 reviewer 风险，用 `/lab-review`。
 
 ## 实验生命周期
 
@@ -324,12 +569,13 @@ LabLock skills 分两类：
 **不要何时使用**：
 
 - 只是创建 git branch。用 `/lab-exp-start`。
-- drift 已经发生且应该成为新实验。用 `/lab-fork`。
+- drift 已经发生且应该成为新实验。用 `lablock fork`；旧 `/lab-fork` skill 已归档。
 - 实验设计还没明确。先用 `/lab-plan-exp`。
 
 **会做什么**：
 
 - 分配下一个 `exp-NNN`。
+- 根据 `.lablock/naming.yaml` 绑定 `matrix_id`、`variable_id`、`canonical_variable`、`variant_value`、`paper_label`。
 - 创建 `experiments/<exp>-<shortname>/hypothesis.md`。
 - 创建 `.lablock/locks/<exp>.scope.lock`。
 - 捕获 hypothesis、controlled changes、config invariants、file invariants、optional probes、kill/success criteria。
@@ -338,27 +584,30 @@ LabLock skills 分两类：
 
 - `experiments/<exp>-<shortname>/`。
 - `.lablock/locks/<exp>.scope.lock`。
+- hypothesis frontmatter 和 scope.lock 中的 `naming` 引用。
 
 **下一步**：
 
 - 提交实验定义。
-- `/lab-exp-start` 创建实验分支。
+- 默认继续在 `experiments/<exp>-<shortname>/` 文件夹中隔离运行。
+- 只有需要 Git 历史隔离、远端 CI、多人协作或归档历史时再用 `/lab-exp-start`。
 
 ### `/lab-exp-start`
 
-**作用**：从主线创建实验分支，并设置当前实验状态。
+**作用**：在明确需要 Git 历史隔离时创建实验分支，并设置当前实验状态。
 
 **何时使用**：
 
 - `/lab-exp-init` 的实验文件已经提交。
 - 工作区干净。
-- 准备在独立 branch 上开始实验。
+- 明确需要独立 branch：远端 CI、多人协作、归档历史，或用户显式要求。
 
 **不要何时使用**：
 
 - 实验定义还没提交。
 - 工作区有未提交改动。
 - 想创建实验文件。用 `/lab-exp-init`。
+- 只是想并行跑实验。默认用不同 `experiments/<exp>-<shortname>/` 文件夹隔离。
 
 **会做什么**：
 
@@ -383,18 +632,18 @@ LabLock skills 分两类：
 
 **何时使用**：
 
-- 已经在实验 branch 上。
-- `scope.lock` 已创建。
+- `scope.lock` 已创建，实验文件夹存在。
 - 准备启动训练/评估命令。
 
 **不要何时使用**：
 
-- 还没创建实验分支。
+- 还没创建实验节点或 `scope.lock`。
 - 想让 LabLock 替你提交 Slurm/tmux/job。LabLock 只打印 canonical command，不拥有你的训练系统。
 
 **会做什么**：
 
-- 验证实验上下文和 scope。
+- 验证实验上下文和当前实验 scope。
+- 检查工作区，但不要求全仓库 clean；其他实验或无关文件的脏状态只作为 warning。
 - 设置 `.lablock/state/current-exp`。
 - 更新 `infra/gpu/runs.md`。
 - 打印应该运行的训练命令。
@@ -411,38 +660,43 @@ LabLock skills 分两类：
 
 ### `/lab-guard`
 
-**作用**：处理 commit 时被 LabLock 拦住的 SCOPE-DRIFT。
+**归档状态**：已移到 `archive/skills/lab-guard`，不再由 `lablock update-skills` 默认安装。vNext 默认使用 `/lab-deguard` 和 `/lab-monitor` 做目标对齐；旧 `scope.lock` drift CLI 仍保留。
+
+**作用**：把 SCOPE-DRIFT warning 按研究目标分类。
 
 **何时使用**：
 
-- pre-commit 报 `SCOPE-DRIFT detected`。
-- 你不确定应该 fork、override 还是 revert。
+- pre-commit 报 `SCOPE-DRIFT warning`。
+- 你不确定 drift 是应该 fork、override、continue-with-note 还是 revert。
 
 **不要何时使用**：
 
 - 没有 drift，只是普通 commit。
-- 想绕过 hook。不要用 `git commit --no-verify` 作为默认路径。
+- 只是想继续提交。默认 drift warning 不会阻断本地进度。
 
 **会做什么**：
 
 - 读取 drift 信息。
 - 展示具体漂移：哪个 config key、哪个 file hash、expected vs actual。
-- 引导用户三选一：
+- 引导用户四选一：
   - fork：新实验方向。
   - override/update lock：有理由接受 drift。
+  - continue-with-note：继续推进，但把解释 caveat 记下来。
   - revert：误改。
 
 **主要输出**：
 
-- fork artifact、decision/override artifact，或撤回改动。
+- fork artifact、decision/override/note artifact，或撤回改动。
 
 **下一步**：
 
-- `/lab-fork`。
+- `lablock fork` 或归档参考 `archive/skills/lab-fork`。
 - `lablock override --exp=... --reason=...`。
-- 重新 commit。
+- 继续实验或记录结果。
 
 ### `/lab-fork`
+
+**归档状态**：已移到 `archive/skills/lab-fork`，不再由 `lablock update-skills` 默认安装。旧 CLI `lablock fork` 仍保留给 legacy `scope.lock` 工作流。
 
 **作用**：把当前实验 drift 分叉成一个新实验。
 
@@ -473,7 +727,7 @@ LabLock skills 分两类：
 **下一步**：
 
 - 提交 fork artifact。
-- 在新实验分支继续工作。
+- 默认在新实验文件夹继续；需要 Git 历史隔离时再用 `/lab-exp-start`。
 
 ### `/lab-exp-finalize`
 
@@ -488,7 +742,7 @@ LabLock skills 分两类：
 
 - 实验还没产生可解释结果。
 - 工作区不干净。
-- 不在对应 experiment branch 上。
+- 实验文件夹或 `scope.lock` 不存在。
 
 **会做什么**：
 
@@ -517,7 +771,7 @@ LabLock skills 分两类：
 
 - 实验 `status=done`。
 - 你要把 formalism、claims、decision 或部分 utility code merge 回 main。
-- 实验 branch 里有很多临时脚本/debug noise，不想污染 main。
+- 实验文件夹或实验 source ref 里有很多临时脚本/debug noise，不想污染 main。
 
 **不要何时使用**：
 
@@ -606,17 +860,127 @@ LabLock skills 分两类：
 **下一步**：
 
 - 应用已验证 fix。
+- 如果三次本地尝试仍没定位，或怀疑是论文/库/社区中已知问题，用 `/lab-research-debug`。
 - 需要外部帮助时用 `/lab-handoff`。
 
-### `/lab-handoff`
+### `/lab-research-debug`
 
-**作用**：把上下文打包给外部 AI、队友或另一个工具。
+**作用**：对实验问题做深度 research 诊断，把实验上下文、外部资料和本地代码分析合成一个非阻断结论。
 
 **何时使用**：
 
-- 要问 ChatGPT web、同事或另一个 agent。
+- `/lab-debug` 已经做过本地复现/假设，但原因仍不清楚。
+- 用户问“有没有人遇到过类似问题”“查一下 issue/forum/community”“找参考文献再看代码”。
+- 结果异常可能是 bug、已知 reproduction caveat、库版本问题、环境问题或真实现象。
+
+**不要何时使用**：
+
+- 明显的一行错误或已经有明确 fix。用 `/lab-debug`。
+- 想让 LabLock 自动写实验脚本。用 `/lab-handoff --type=implementation` 生成 coding-agent prompt。
+- 只想做研究方向判断。用 `/lab-taste`。
+
+**会做什么**：
+
+- 读取当前实验的 hypothesis、config、results、scope.lock、changes 和 debug log。
+- 搜索官方文档、论文、reproduction repo、GitHub issue/discussion、论坛和开源社区相似案例。
+- 对本地问题代码做入口、配置、数据流、模型/loss/eval、环境版本等诊断。
+- 给出 `confirmed local bug / likely local bug / known upstream issue / expected phenomenon / environment issue / inconclusive` 分类、证据和下一步。
+
+**主要输出**：
+
+- `reviews/YYYY-MM-DD-<exp>-<topic>-research-debug.md`。
+
+**下一步**：
+
+- 最小修复或最小 reproducer/probe。
+- 影响实验意义时先写清目标影响；legacy `scope.lock` 分类参考 `archive/skills/lab-guard` 或使用 `lablock override`。
+- 需要外部 AI 时走 `/lab-handoff --type=debug`。
+- 实验应暂停/失败时走 `/lab-postmortem`。
+
+### `/lab-monitor`
+
+**作用**：报告实验总目标、当前阶段目标、进度、初步结果和下一步。
+
+**何时使用**：
+
+- 用户问“现在做到哪了”“有什么进展”“阶段性结论是什么”。
+- Agent 执行中需要过程监控。
+- Handoff 返回后，需要把结果挂回实验进展。
+
+**不要何时使用**：
+
+- 需要旧图形看板。参考 `archive/skills/lab-dashboard` 或直接运行 `lablock dashboard`；vNext 默认不用它做监控主线。
+- 需要设计实验计划。用 `/lab-plan-exp` 或 `/lab-roadmap`。
+
+**会做什么**：
+
+- 读取 `objective.md`、`plan.md`、`roadmap.md`、`progress.md`、`results.md`、handoffs、reviews、recent commits。
+- 缺失信息写 unknown，不猜。
+- 区分事实、解释和未知。
+- 如发现防御性膨胀，建议 `/lab-deguard`。
+
+**主要输出**：
+
+- 对话中的快速状态回答。
+- 必要时写 `reviews/YYYY-MM-DD-<exp>-monitor.md`。
+
+**草稿命令**：
+
+- `lablock draft monitor --exp <exp-id> --topic <topic>`。
+- `lablock draft progress --exp <exp-id> --topic <topic>`。
+
+**下一步**：
+
+- `/lab-handoff --mode=execution`。
+- `/lab-deguard`。
+- `/lab-research-debug`。
+- `/lab-postmortem` 或 `/lab-synthesize`。
+
+### `/lab-deguard`
+
+**作用**：识别并减少 AI Agent 生成的非目标相关防御性机制。
+
+**何时使用**：
+
+- Agent 加入大量 gate、validator、retry、fallback、policy check 或抽象层。
+- 进展停在流程建设，而不是研究目标。
+- 用户担心 AI 过度防御、偏离主线。
+
+**不要何时使用**：
+
+- 涉及 destructive git、secrets、privacy、data deletion 或不可逆外部副作用。
+- 研究目标本身需要安全检查或污染检测。
+
+**会做什么**：
+
+- 检查 plan、roadmap、handoff、progress、diff 或代码片段。
+- 对可疑机制分类：keep / simplify / remove / defer / clarify。
+- 说明它是否直接服务当前研究目标。
+- 保留基础安全边界。
+
+**主要输出**：
+
+- `reviews/YYYY-MM-DD-<exp>-deguard.md`。
+
+**草稿命令**：
+
+- `lablock draft deguard --exp <exp-id> --topic <topic>`。
+
+**下一步**：
+
+- 用户确认后再改代码或计划。
+- 必要时回到 `/lab-plan-exp` 或 `/lab-roadmap`。
+
+### `/lab-handoff`
+
+**作用**：统一处理 execution handoff、expert consultation、incoming reply ingestion 和 consultation summary。
+
+**何时使用**：
+
+- 要把执行任务交给另一个 AI/coding agent。
+- 要把问题交给导师、专家、reviewer、社区或外部 AI 判断。
+- 外部回复已经放入 `handoffs/incoming/`，需要总结和提炼下一步。
 - 需要 self-contained context，而不是让对方翻整个 repo。
-- debug/method/results/design/writing 任一场景。
 
 **不要何时使用**：
 
@@ -625,18 +989,29 @@ LabLock skills 分两类：
 
 **会做什么**：
 
-- 选择 handoff type：debug、method、results、design、writing。
-- 抽取 project background、formalism、claims、experiment、code/log/traceback/results。
-- 写成单一 Markdown bundle。
+- 选择 mode：execution、expert-consultation、reply、summary。
+- execution mode 读取 objective / plan / roadmap，生成给 Agent 的执行任务包。
+- expert-consultation mode 生成给专家的咨询 brief，要求诊断、建议、风险和参考资料。
+- reply mode 读取 incoming 回复，写入 summary，并建议 progress 更新。
+- legacy `--type=implementation` 继续兼容 execution handoff。
 
 **主要输出**：
 
 - `handoffs/outgoing/YYYY-MM-DD-<topic>.md`。
+- `handoffs/summaries/YYYY-MM-DD-<topic>.md`。
+
+**草稿命令**：
+
+- `lablock handoff --mode=execution --exp <exp-id> --topic <topic>`。
+- `lablock handoff --mode=expert-consultation --topic <topic>`。
+- `lablock handoff --mode=reply --topic <topic> --incoming <path> --outgoing <path>`。
+- `lablock handoff --type=implementation --exp <exp-id> --topic <topic>` 仍兼容旧调用。
 
 **下一步**：
 
-- 发送给外部 AI/队友。
-- 回来后把答复放入 `handoffs/incoming/` 或写 decision。
+- execution 后用 `/lab-monitor` 查看进展。
+- expert consultation 回复回来后，用 `/lab-handoff --mode=reply`。
+- 不自动应用外部回复中的代码或配置建议。
 
 ## Claim、Formalism 与 Paper
 
@@ -871,8 +1246,10 @@ LabLock skills 分两类：
 ### 新项目
 
 ```text
-/lab-init -> /lab-plan -> /lab-plan-exp -> /lab-exp-init -> /lab-exp-start -> /lab-exp-run
+/lab-init -> /lab-plan -> optional /lab-taste -> /lab-plan-exp -> /lab-exp-init -> /lab-exp-run
 ```
+
+`/lab-exp-start` is optional when a Git branch is needed for collaboration, remote CI, or archival history isolation.
 
 ### 已有项目
 
@@ -883,7 +1260,7 @@ LabLock skills 分两类：
 ### 实验 drift
 
 ```text
-pre-commit blocks -> /lab-guard -> /lab-fork OR lablock override OR revert
+pre-commit warns -> /lab-monitor or /lab-deguard -> lablock fork OR lablock override OR continue-with-note OR revert
 ```
 
 ### 成功实验进入 main
@@ -897,6 +1274,14 @@ pre-commit blocks -> /lab-guard -> /lab-fork OR lablock override OR revert
 ```text
 /lab-exp-finalize --status=killed -> /lab-postmortem -> /lab-synthesize
 ```
+
+If the failure cause is unclear, diagnose before finalizing:
+
+```text
+/lab-debug -> /lab-research-debug -> minimal fix OR /lab-deguard OR /lab-postmortem
+```
+
+When a surprising result may be more than a bug, insert `/lab-taste` before deciding the next experiment.
 
 ### 写 paper
 

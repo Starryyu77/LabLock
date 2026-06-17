@@ -20,8 +20,9 @@ Required:
 Verify:
 
 - The experiment is finalized (`status=done`). If not, refuse: "Run /lab-exp-finalize first. Cleanup PRs only make sense for done experiments."
-- The experiment branch exists and is pushed to origin (gh PR requires it).
-- We're checked out somewhere—doesn't matter where (the skill switches branches as needed).
+- The experiment folder and `.lablock/locks/<exp-id>.scope.lock` exist. A matching experiment branch is optional.
+- Prefer the final tag `<exp-id>-final` as the frozen source reference when it exists; otherwise use the current checkout or an explicit user-provided source ref.
+- We're checked out somewhere with a clean tree before creating the cleanup branch.
 - `gh` CLI is available and authenticated. If not, the skill can still classify the diff (see Step 1) but can't open a PR; tell user.
 
 ## Step 1: Diff and classify
@@ -36,13 +37,13 @@ This CLI command is the classifier/dry-run engine only. It does not create the c
 
 The classifier:
 
-- Computes `git diff --name-status main...exp/<exp-id>-*`
+- Computes the file diff from the chosen source ref/current checkout against `main`.
 - Classifies each file using `lib/classify.ts` rules:
   - `formalism` (formalism.md, derivations/) → **include**
   - `claim` (claims.md) → **include**
   - `decision` (decisions/) → **include**
   - `index` (MAP.md, INDEX.md, experiments/matrix.md) → **exclude** (regenerated automatically)
-  - `exp-script` (experiments/exp-NNN-*) → **exclude** (lives in branch + tag)
+  - `exp-script` (experiments/exp-NNN-*) → **exclude** (lives in experiment folder + final tag)
   - `debug-noise` (code with print/pdb/console.log) → **exclude with warning**
   - `utility` (other code files) → **ASK USER per-file**
   - `doc`, `config`, `other` → **ASK USER per-file**
@@ -89,7 +90,7 @@ git checkout -b cleanup/<exp-id>-merge
 
 For each "include" file (auto + user-confirmed):
 
-- Get its content from `exp/<exp-id>-<shortname>` HEAD: `git show exp/<exp-id>-*:<path>`
+- Get its content from the approved source ref: `git show <source-ref>:<path>` when using a ref, or copy from the current working tree when using the current checkout.
 - Write to working tree
 - Stage
 
@@ -112,7 +113,7 @@ last_updated: <date>
 formalism_version: v<N>
 ```
 
-This sometimes already exists in the experiment branch's version; verify it's current.
+This sometimes already exists in the experiment source version; verify it's current.
 
 ## Step 6: Verify CI-relevant files are coherent
 
@@ -160,7 +161,7 @@ Final results: <key metric numbers>
 - Decisions: <list of decision filenames>
 - Utility code: <list of files included after review>
 
-## What stays in the experiment branch only
+## What stays in the experiment folder only
 - experiment configs and scripts (preserved at tag <exp-id>-final)
 - debug code (cleaned up before merge if any)
 
@@ -197,13 +198,13 @@ Next step:
 
 - **Coverage check fails** in Step 6 → don't create the PR. Show the gaps and let user decide whether to include more files.
 - **Working tree not clean before Step 3** → refuse: "Stash or commit your in-progress changes before cleanup."
-- **Origin doesn't have `exp/<exp-id>-*`** → tell user to push the experiment branch first.
+- **Final tag missing and source ref ambiguous** → finalize/tag first, or ask the user for an explicit source ref/current checkout confirmation.
 - **`gh` not authenticated** → fall back to printing the would-be `gh pr create` command for the user to run.
 
 ## Don't
 
 - Don't `git cherry-pick` commits. Use per-file copy. Cherry-pick is too coarse.
 - Don't auto-include utility code without user confirmation. Yesterday's "useful helper" is tomorrow's main-branch debt.
-- Don't include exp-scripts. They live in the experiment branch + tag forever; main shouldn't carry them.
+- Don't include exp-scripts. They live in the experiment folder + final tag forever; main shouldn't carry them.
 - Don't merge the cleanup PR within this skill. The user reviews in GitHub.
 - Don't `--force` push.

@@ -1,7 +1,7 @@
 ---
 name: lab-guard
 description: |
-  Resolve a SCOPE-DRIFT detected by the pre-commit hook. Triggers: "drift detected", "scope drift", "pre-commit blocked", "guard", "drift accountability needed", "commit refused". Reads `.git/lablock-commit-meta.json` to understand what drifted, then walks the user through three options: fork (creates new exp), override (records decision and updates lock), or revert (unstages changes). After resolution, the user re-runs `git commit` (without --no-verify). This skill may create files (decisions/), modify scope.lock, unstage changes, or initiate fork; user must invoke explicitly.
+  Classify a SCOPE-DRIFT warning against the active research objective. Triggers: "drift detected", "scope drift", "guard", "alignment warning", or "should this become a fork?". Reads commit metadata/current diff and walks through fork, override, continue-with-note, or revert. User-invoked only.
 disable-model-invocation: true
 related-skills:
   - lab-fork
@@ -9,20 +9,20 @@ related-skills:
 
 # /lab-guard
 
-You are resolving a SCOPE-DRIFT that the pre-commit hook just blocked. The user's commit was refused; they're now invoking you to figure out what to do.
+You are classifying a SCOPE-DRIFT warning. The local commit may already have succeeded; your job is not to unlock progress. Your job is to recenter the user on the original research objective and decide whether the drift changes the experiment's meaning.
 
 ## Pre-flight
 
-1. **Read `.git/lablock-commit-meta.json`.** This file was written by the failed pre-commit. If it doesn't exist, ask: "I don't see a pending commit-meta. Was a commit just blocked? Try the commit again to regenerate the meta." (Note: in some cases pre-commit may have cleaned this up; check the most recent commit log too.)
+1. **Read available drift context.** Prefer `.git/lablock-commit-meta.json` if present. If it was already cleared by post-commit, inspect the latest `[SCOPE-DRIFT]` commit and `.lablock/changes/<exp>.changes.log`.
 2. **Read `.lablock/state/current-exp`** to confirm the active experiment.
 3. **Read `.lablock/locks/<current-exp>.scope.lock`** to remind the user of the original hypothesis and locked invariants.
 
-## Step 1: Diagnose
+## Step 1: Diagnose Against The Research Objective
 
 Print to user, plainly:
 
 ```
-SCOPE-DRIFT detected on <exp-id>.
+SCOPE-DRIFT warning on <exp-id>.
 
 Original hypothesis:
   <from hypothesis.md>
@@ -35,15 +35,16 @@ What drifted:
     - <path> hash changed (<expected> → <actual>)
     - ...
 
-The pre-commit hook will not accept this commit until accountability is recorded.
+Research alignment question:
+  Does this drift help test the original hypothesis, change the hypothesis, or distract from it?
 ```
 
-Don't editorialize. Just show the diff.
+Be concrete. Explain the drift's effect on the original research target before discussing process.
 
 ## Step 2: Present three paths
 
 ```
-Three options:
+Four options:
 
 (a) FORK — Create a new experiment with the drifted setup as its baseline.
     Original exp gets marked superseded. Use this when:
@@ -56,7 +57,13 @@ Three options:
     - The drift is a fix to an incorrect original lock (e.g., lr was wrong)
     - The change is intentional and the experiment should continue under new invariants
 
-(c) REVERT — Unstage the offending changes and abort the commit. Use this when:
+(c) CONTINUE WITH NOTE — Keep the commit as a research alignment note without changing lock.
+    Use this when:
+    - The drift is exploratory and does not yet deserve a new experiment
+    - The user wants momentum but future synthesis should know the run is less controlled
+    - You will record the rationale in results.md, notes, or a decision file
+
+(d) REVERT — Unstage or undo the offending changes. Use this when:
     - The drift was unintentional (you didn't mean to change lr)
     - You want to undo and try again
 ```
@@ -86,7 +93,7 @@ If yes:
    - Marks original exp as superseded (status in frontmatter and lock)
    - Writes `decisions/<date>-fork-<from>-to-<to>-<change-id>.md`
    - Stages all changes
-5. Tell user: "Re-run `git commit -m '<your message>'` now. The hook will accept because the fork accountability is staged."
+5. Tell user: "Continue from the new experiment folder. The fork records that the research target changed."
 
 ## Path (b): Override
 
@@ -113,9 +120,20 @@ If yes:
    - The decision file should also note that scope.lock was updated.
 5. Tell user: "Re-run `git commit -m '<your message>'`. The hook will accept (override is staged, drift is acknowledged)."
 
-## Path (c): Revert
+## Path (c): Continue With Note
 
-Confirm: "Unstage the offending changes and abort the commit?"
+Confirm: "Keep this drift as an alignment note for `<current-exp>`?"
+
+If yes:
+
+1. Ask for a one-sentence reason tied to the original research objective.
+2. Append the note to `experiments/<exp-id>-*/results.md` or write a short `decisions/` note if the change affects interpretation.
+3. Do not force a lock update. The point is to preserve momentum while making later synthesis aware of the caveat.
+4. Tell user: "The experiment can continue. Treat downstream results as exploratory unless you later fork or update the lock."
+
+## Path (d): Revert
+
+Confirm: "Unstage or undo the offending changes?"
 
 If yes:
 
@@ -123,29 +141,26 @@ If yes:
    - Layer 1: the `experiments/<exp-id>-*/config.yaml`
    - Layer 2: the listed paths in `drift_layers.files`
 2. For each, run `git reset HEAD <path>` to unstage. Optionally `git checkout -- <path>` to discard working changes (ask the user first—this is destructive).
-3. Tell user: "Drift unstaged. The originally-staged non-drifting changes are still staged. Re-run your commit; the hook should accept now."
+3. Tell user: "Drift removed. Continue with the original experiment frame."
 
-## Step: Re-attempt commit (all paths)
+## Step: Continue
 
-After whichever path was taken, prompt the user:
+After whichever path was taken, summarize:
 
-> Now re-run your commit:
->
-> ```bash
-> git commit -m "<your original message>"
-> ```
->
-> The hook should accept this time. If it still fails, run `/lab-guard` again with the new diagnosis.
+- Which research objective is now active
+- Whether the current run is controlled or exploratory
+- What file records the decision/note, if any
+- The next concrete experiment action
 
 ## Special cases
 
 - **Multi-layer drift** (config + files both): the user can fork once to absorb both, or override once with reason covering both. Don't make them resolve layer-by-layer.
 - **Drift in a file that shouldn't have been an invariant** (the original lock was over-restrictive): use override path, update scope.lock to remove that file from `locked_invariants.files`, and write the decision explaining why the lock was overcautious.
-- **Drift on a paper branch**: this should not happen because paper branches don't track exp state. If the user got here on `paper/*`, something is misconfigured; tell them to switch branches.
+- **Drift on a paper branch**: paper branches normally don't track exp state. Treat this as a configuration warning and route back to the active experiment if needed.
 
 ## Don't
 
-- Don't suggest `git commit --no-verify`. That bypasses local hook but CI will reject on push to protected branches. The user is also not building good habits.
-- Don't make the choice for the user. Present the three options clearly and let them decide.
+- Don't turn the warning into the research agenda. Keep the decision tied to the original hypothesis and the next useful run.
+- Don't make the choice for the user. Present the four options clearly and let them decide.
 - Don't delete files in revert path without explicit confirmation.
 - Don't proceed with override if `lablock override` reports "no SCOPE-DRIFT detected"—that means the staged content doesn't actually drift. Tell the user to re-stage their changes or check the meta.

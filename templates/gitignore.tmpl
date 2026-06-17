@@ -1,6 +1,7 @@
 # LabLock
 .lablock/state/
 .lablock/cache/
+.lablock/dashboard/
 .git/lablock-commit-meta.json
 
 # Common ML
@@ -11,3 +12,18 @@ mlruns/
 outputs/
 __pycache__/
 .ipynb_checkpoints/
+
+# Folder-isolated experiment artifacts
+experiments/**/.cache/
+experiments/**/.venv/
+experiments/**/__pycache__/
+experiments/**/.ipynb_checkpoints/
+experiments/**/checkpoints/
+experiments/**/logs/
+experiments/**/mlruns/
+experiments/**/outputs/
+experiments/**/runs/
+experiments/**/tmp/
+experiments/**/wandb/
+experiments/**/*.ckpt
+experiments/**/*.pt

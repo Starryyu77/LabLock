@@ -47,7 +47,26 @@ Explain the trade-off plainly:
 
 Default `warn-only`. Confirm.
 
-## Step 4: GitHub remote (optional)
+## Step 4: Naming profile
+
+Ask whether the user already has expected naming for variables, experiment families, or paper tables.
+
+Then offer three choices:
+
+- **A. Minimal**: keep `exp-NNN-<shortname>` and light free-text naming. Best for small exploratory repos.
+- **B. Paper-Aligned Registry (recommended)**: keep stable `exp-NNN`, but maintain `.lablock/variables.yaml` and `.lablock/matrices.yaml` so variables, variants, paper labels, and matrix membership stay consistent.
+- **C. Matrix-First / Sweep-Heavy**: optimize for large ablations or sweeps, with matrix and cell IDs shaping experiment shortnames.
+
+Default to **B** unless the user explicitly says this is a small throwaway repo or a large sweep-first project.
+
+Record the choice as `--naming-profile=minimal|paper-aligned|matrix-first`. Explain:
+
+- Experiment ID is for stable citation: `exp-007`
+- Experiment shortname is for human scanning: `qkvproj-elm`
+- Variable registry is for canonical naming: `var-001`, `qkv_projection_type`, paper label
+- Matrix registry is for paper tables and ablation families: `mat-001`, `qkv-projection-ablation`
+
+## Step 5: GitHub remote (optional)
 
 Ask: "Configure a GitHub remote now?"
 
@@ -58,7 +77,7 @@ Ask: "Configure a GitHub remote now?"
 
 If a remote was created or linked, also offer to set branch protection on `main`. If yes, run `lablock github-protection apply --branch=main --required-status=lablock-checks --required-reviews=1 --dry-run --json` after the first push, then apply for real after the user reviews the payload.
 
-## Step 5: Generate skeleton
+## Step 6: Generate skeleton
 
 Run:
 
@@ -67,6 +86,7 @@ lablock init-project \
   --name="<project-name>" \
   --modules="<csv-of-modules>" \
   --ci-mode="<warn-only|enforce>" \
+  --naming-profile="<minimal|paper-aligned|matrix-first>" \
   --goal="<one-line-domain>" \
   --hypothesis="<initial-hypothesis>"
 ```
@@ -74,13 +94,14 @@ lablock init-project \
 This single command:
 
 - creates all directories (`.lablock/`, `experiments/`, `decisions/`, `reviews/`, `handoffs/`, `paper/`, etc.)
+- creates `.lablock/naming.yaml`, `.lablock/variables.yaml`, and `.lablock/matrices.yaml`
 - renders all templates (`PROJECT.md`, `formalism.md`, `claims.md`, `INDEX.md`, `MAP.md`, `experiments/matrix.md`, `.gitignore`, `.gitattributes`, `.claude/settings.json`)
 - writes `.lablock/config.yaml` with the user's choices
 - writes `.github/workflows/lablock.yml`
 - injects `## lablock` sections into `CLAUDE.md` and `AGENTS.md`
 - installs git hooks (symlinks first, copy fallback) into `.git/hooks/`
 
-## Step 6: Initial commit
+## Step 7: Initial commit
 
 Stage and commit:
 
@@ -91,7 +112,7 @@ git commit -m "[main] LabLock: initialize project"
 
 The pre-commit hook will run for the first time. If it complains about anything, that's a real issue—don't `--no-verify`. Resolve it.
 
-## Step 7: Final report
+## Step 8: Final report
 
 Print a clean summary:
 
@@ -99,6 +120,7 @@ Print a clean summary:
 - Hooks installed — list the 5 names (`pre-commit`, `prepare-commit-msg`, `commit-msg`, `post-commit`, `pre-push`)
 - CLAUDE.md / AGENTS.md status — created, appended, or replaced existing `## lablock` section
 - GitHub remote — none / created / linked
+- Naming profile — minimal / paper-aligned / matrix-first, plus registry file paths
 - Next step: "Run `/lab-plan` to design your first research direction, or `/lab-exp-init` if you already know what to test."
 
 ## Failure modes

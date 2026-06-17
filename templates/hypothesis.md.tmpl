@@ -7,6 +7,24 @@ hypothesis: {{hypothesis}}
 related_claims: []
 forked_from: {{forked_from}}
 fork_reason: {{fork_reason}}
+{{#if naming}}
+naming:
+{{#if naming.matrix_id}}
+  matrix_id: {{naming.matrix_id}}
+{{/if}}
+{{#if naming.variable_id}}
+  variable_id: {{naming.variable_id}}
+{{/if}}
+{{#if naming.canonical_variable}}
+  canonical_variable: {{naming.canonical_variable}}
+{{/if}}
+{{#if naming.variant_value}}
+  variant_value: {{naming.variant_value}}
+{{/if}}
+{{#if naming.paper_label}}
+  paper_label: {{naming.paper_label}}
+{{/if}}
+{{/if}}
 ---
 
 # {{exp_id}}: {{shortname}}
@@ -27,6 +45,26 @@ fork_reason: {{fork_reason}}
 - Modified: {{this}}
 {{/each}}
 
+{{#if naming}}
+## Naming
+
+{{#if naming.matrix_id}}
+- Matrix: {{naming.matrix_id}}
+{{/if}}
+{{#if naming.variable_id}}
+- Variable ID: {{naming.variable_id}}
+{{/if}}
+{{#if naming.canonical_variable}}
+- Canonical variable: {{naming.canonical_variable}}
+{{/if}}
+{{#if naming.variant_value}}
+- Variant value: {{naming.variant_value}}
+{{/if}}
+{{#if naming.paper_label}}
+- Paper label: {{naming.paper_label}}
+{{/if}}
+
+{{/if}}
 ## Success criteria
 
 {{#each success_criteria}}

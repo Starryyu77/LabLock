@@ -1,25 +1,25 @@
 # LabLock
 
-LabLock 是一个面向科研代码仓库的工作流护栏工具。它用 `scope.lock`、Git hooks、CLI、AI skills 和审计报告，把“实验在测什么、哪些东西不能漂、哪些 claim 有证据”固定成文件，而不是只留在对话里。
+LabLock 是一个面向科研代码仓库的研究目标对齐工具。它用 `scope.lock`、Git hooks、CLI、AI skills 和审计报告，把“实验最初想达到什么、当前改动是否仍朝这个目标推进、哪些 claim 有证据”固定成文件，而不是只留在对话里。
 
 当前实现基于 Bun + TypeScript，面向 Claude Code / Codex 这类本地 coding agent 使用。
 
 ## 它解决什么问题
 
-科研仓库经常会出现几类失控：
+科研仓库经常会出现几类偏离：
 
-- 实验跑着跑着，baseline、config、dataloader、loss 被顺手改了，最后不知道结论到底来自哪个变量。
+- 实验跑着跑着，baseline、config、dataloader、loss 被顺手改了，最后不知道结论到底是否服务于最初目标。
 - paper 里写了 claim，但 evidence 分散在实验目录、commit、日志和聊天记录里。
 - 多个 AI / 人类一起改仓库时，当前关注的实验、fork、drift、postmortem 没有统一状态。
 - 成功实验 merge 回主线时，debug noise、临时脚本和真正要保留的改动混在一起。
 
 LabLock 的做法是：
 
-- 每个实验都有 `.lablock/locks/<exp>.scope.lock`，记录 config / file hash / probe 三层 invariant。
-- Git hooks 在 commit 前检查 scope drift，并要求通过 fork、decision 或 override 解释。
+- 每个实验都有 `.lablock/locks/<exp>.scope.lock`，记录研究目标、预期变量、config / file hash / probe 等实验 frame。
+- Git hooks 在 commit 前检查 scope drift，默认给出 warning、记录 meta/changelog；vNext 优先用 `/lab-monitor` 或 `/lab-deguard` 判断是否仍朝研究目标推进，legacy fork/override 仍可用 CLI 处理。
 - `changes.log`、commit trailer、change index 把每次改动连到 commit。
 - `claims.md`、`formalism.md`、`paper/`、`decisions/` 让写作和证据可审计。
-- `lab-*` skills 让 AI 按固定流程做计划、实验、debug、handoff、paper audit 和仓库更新。
+- `lab-*` skills 让 AI 围绕研究目标做计划、实验记录、debug、handoff、paper audit 和仓库更新，而不是把防御性检查当成研究主线。
 
 ## 安装
 
@@ -98,12 +98,13 @@ curl -fsSL https://raw.githubusercontent.com/Starryyu77/LabLock/main/install.sh 
 在目标科研仓库中运行：
 
 ```bash
-lablock init-project --name="My Project" --modules=gpu,data,lit --ci-mode=warn-only
+lablock init-project --name="My Project" --modules=gpu,data,lit --ci-mode=warn-only --naming-profile=paper-aligned
 ```
 
 它会创建：
 
 - `.lablock/` 配置、locks、changes、state
+- `.lablock/naming.yaml`、`.lablock/variables.yaml`、`.lablock/matrices.yaml`
 - `PROJECT.md`、`formalism.md`、`claims.md`、`INDEX.md`、`MAP.md`
 - `experiments/`、`decisions/`、`reviews/`、`handoffs/`、`paper/`
 - Git hooks
@@ -115,11 +116,14 @@ lablock init-project --name="My Project" --modules=gpu,data,lit --ci-mode=warn-o
 ```bash
 lablock doctor
 lablock update
+lablock dashboard
 lablock next-exp-id
 lablock exp-init baseline --hypothesis "..." --config optimizer.lr=0.001 --stage
+lablock migrate-node legacy-baseline --source runs/2026-05-01-baseline --source-type run --status done --hypothesis "Legacy baseline run reproduced reference accuracy." --stage
 lablock exp-start --exp=exp-001
 lablock exp-finalize --exp=exp-001 --status=killed
 lablock postmortem --exp=exp-001
+lablock research-debug --exp=exp-001 --topic loss-spike --symptom "loss diverges after step 800"
 lablock cleanup-pr --exp=exp-001 --dry-run
 lablock fork --from exp-001 --shortname model-fork --reason "model invariant changed" --stage
 lablock override --exp=exp-001 --reason="intentional drift"
@@ -130,6 +134,29 @@ lablock-frontmatter-check --strict
 lablock-skill-lint
 lablock-coverage --strict
 lablock-drift-audit --strict
+```
+
+### 实验看板
+
+```bash
+lablock dashboard
+```
+
+默认会生成：
+
+- `.lablock/dashboard/data.json`
+- `.lablock/dashboard/index.html`
+
+看板从 `experiments/*/hypothesis.md`、`experiments/*/results.md` 和 `.lablock/locks/*.scope.lock` 汇总实验规划、当前进度、父子实验关系、下一步子实验、success/kill criteria 和关键配置。需要纯数据时可以运行：
+
+```bash
+lablock dashboard --json
+```
+
+如果本机允许打开浏览器：
+
+```bash
+lablock dashboard --open
 ```
 
 ## Skill 总览
@@ -145,9 +172,9 @@ LabLock skills 分两类：
 
 | Skill | 什么时候用 | 它做什么 | 主要输出 |
 |---|---|---|---|
-| `/lab-advice` | 不知道当前任务该用哪个 LabLock skill | 读用户意图，推荐最合适的 `/lab-*`，或明确说没有合适 skill | 推荐 skill、理由、可复制调用语句 |
-| `/lab-init` | 新科研仓库第一次接入 LabLock | 初始化目录、配置、hooks、CLAUDE/AGENTS 注入和 CI | `.lablock/`、项目骨架、hooks |
-| `/lab-migrate` | 已有科研仓库想非破坏性接入 LabLock | 先盘点旧脚本/plan/实验/结果，写迁移计划，再经确认用 warn-only 初始化 | `reviews/migration-YYYY-MM-DD.md` 或 `LABLOCK_MIGRATION_PLAN.md` |
+| `/lab-advice` | 不知道当前处于哪个 vNext 阶段、该用哪个 LabLock skill | 按阶段路由，推荐主 skill、产物和下一步，或明确说没有合适 skill | 推荐 skill、阶段、理由、产物、下一步 |
+| `/lab-init` | 新科研仓库第一次接入 LabLock | 初始化目录、配置、命名策略、hooks、CLAUDE/AGENTS 注入和 CI | `.lablock/`、naming/variable/matrix registries、项目骨架、hooks |
+| `/lab-migrate` | 已有科研仓库想非破坏性接入 LabLock | 先盘点旧脚本/plan/实验/结果，写迁移计划；经确认用 warn-only 初始化，并把选中的旧计划/旧实验导入为 LabLock mirror nodes | `reviews/migration-YYYY-MM-DD.md`、`experiments/exp-*`、`.lablock/locks/*.scope.lock` |
 | `/lab-update` | 任意项目里想一键升级本机 LabLock | 运行 `lablock update`：从 GitHub fast-forward 更新 canonical source，重装依赖，刷新 Claude/Codex skills | 更新后的 source、CLI、skill 安装路径 |
 | `/lab-tidy` | 仓库变乱、旧实验太多、分支/文件需要整理 | 找 stale branches、oversized files、expired handoffs、orphan files；默认 dry-run | repo health 清单，可选逐项 apply |
 | `/lab-audit` | 每周检查或想知道项目哪里 stale | 聚合 frontmatter、scope、coverage、orphan、drift、weekly digest | `reviews/audit-YYYY-MM-DD.md` |
@@ -157,19 +184,21 @@ LabLock skills 分两类：
 | Skill | 什么时候用 | 它做什么 | 主要输出 |
 |---|---|---|---|
 | `/lab-plan` | 只有一个模糊研究想法 | 把想法拆成研究问题、隐藏前提、可证伪 hypothesis 和实现备选 | `plans/YYYY-MM-DD-topic.md` |
-| `/lab-plan-exp` | 准备做单个实验，但还没创建 scope.lock | 明确 independent variable、controls、metrics、预期结果、kill/success criteria | `plans/` 下的实验设计草案 |
+| `/lab-literature-research` | idea、关键词或异常结果需要放进文献脉络 | 调研相关论文、方法簇、缺口和定位，不做硬 gate | `research/literature-review.md` |
+| `/lab-methodology-synthesis` | 已有文献和资源，需要形成候选创新方法 | 综合论文、实现、实验和约束，提出 2-3 条方法路线 | `research/methodology.md` |
+| `/lab-research-story` | 需要把方向写成 Research Narrative / Lab Story | 连接共性问题、方法思想、实验路线和 claim 潜力 | `research/story.md` |
+| `/lab-plan-exp` | 研究方向需要变成可执行实验计划 | 通过交互明确目标、约束、产物、验证方式和初步 Roadmap | `plans/` 或 `experiments/<exp>/plan.md` |
+| `/lab-roadmap` | 已有实验计划需要拆成一步步执行路线 | 拆分阶段、步骤、输入、输出、验证点和用户确认点 | `plans/*-roadmap.md` 或 `experiments/<exp>/roadmap.md` |
 | `/lab-review` | 想审一个 plan 或 experiment design | 以 advisor / reviewer2 / feasibility / novelty 视角挑问题 | `reviews/YYYY-MM-DD-target-mode.md` |
-| `/lab-autoplan` | 想一次性做完整压力测试 | 顺序跑四种 review 视角并汇总 go/no-go | `reviews/YYYY-MM-DD-target-autoplan.md` |
+| `/lab-taste` | 想从“科研品味/方向选择/故事潜力”角度看计划、实验或异常结果 | 用 Hamming、Graham、Bourdieu 和 vibe-coding 时代的判断视角做 advisory note，不做 gate | `reviews/YYYY-MM-DD-topic-taste.md` |
 
 ### 实验生命周期
 
 | Skill | 什么时候用 | 它做什么 | 主要输出 |
 |---|---|---|---|
-| `/lab-exp-init` | 新实验、ablation 或新 baseline 开始前 | 分配 `exp-NNN`，创建 hypothesis、config、scope.lock、results | `experiments/<exp>-<shortname>/`、`.lablock/locks/<exp>.scope.lock` |
-| `/lab-exp-start` | 实验文件已提交后，要真正开始独立分支 | 要求 clean tree，从 `main` 创建 experiment branch，设置 current-exp，可选 push | `exp/<exp>-<shortname>` branch |
+| `/lab-exp-init` | 新实验、ablation 或新 baseline 开始前 | 分配 `exp-NNN`，绑定变量/matrix 命名，创建 hypothesis、config、scope.lock、results | `experiments/<exp>-<shortname>/`、`.lablock/locks/<exp>.scope.lock` |
+| `/lab-exp-start` | 可选：明确需要 Git 历史隔离/协作/远端 CI 时 | 要求 clean tree，从 base 创建 experiment branch，设置 current-exp，可选 push；实验主体仍是 folder + lock | optional `exp/<exp>-<shortname>` branch |
 | `/lab-exp-run` | 准备启动训练或实验命令 | scope pre-flight，设置 `.lablock/state/current-exp`，记录 run 信息 | `infra/gpu/runs.md` 更新和 canonical command |
-| `/lab-guard` | pre-commit 报 SCOPE-DRIFT | 展示 drift，要求选择 fork、update lock + decision、或 revert | accountability artifact 或中止 commit |
-| `/lab-fork` | 当前实验变量漂移，应该成为新实验 | 创建新 `exp-NNN`，设置 `forked_from`，复制/更新 lock，可标记原实验 superseded | 新 experiment dir、new scope.lock、decision |
 | `/lab-exp-finalize` | 实验结束、失败、killed 或 superseded | 更新 status、打 final tag、清 current-exp；成功走 cleanup PR，失败走 postmortem | final tag、frontmatter 更新 |
 | `/lab-cleanup-pr` | 成功实验要 merge 回 main | 分类 diff，保留 formalism/claims/decision，排除 debug noise 和临时实验脚本，创建 PR | cleanup branch、draft PR |
 | `/lab-postmortem` | 实验失败、killed 或 superseded 后 | 按 5 段模板写清楚做了什么、发生什么、为什么、学到什么、何时重启 | `experiments/<exp>/postmortem.md` |
@@ -179,7 +208,14 @@ LabLock skills 分两类：
 | Skill | 什么时候用 | 它做什么 | 主要输出 |
 |---|---|---|---|
 | `/lab-debug` | 训练、评估、hook、数据流出问题 | 先复现、追踪数据流、写 hypothesis，再限制修复尝试次数 | `debug/YYYY-MM-DD-topic.md` |
-| `/lab-handoff` | 要把上下文打包给 ChatGPT web 或其他 AI | 按 debug / method / results / design / writing 模板抽取上下文 | `handoffs/outgoing/YYYY-MM-DD-topic.md` |
+| `/lab-research-debug` | 实验问题需要查论文、文档、issue、论坛或开源社区，再结合本地代码诊断 | 聚合实验上下文、外部证据和本地代码分析，给出非阻断诊断结论和下一步 | `reviews/YYYY-MM-DD-exp-topic-research-debug.md` |
+| `/lab-monitor` | 想知道实验总目标、当前阶段目标、进度、初步结果和下一步 | 读取 objective/plan/roadmap/progress/results/handoffs，生成状态报告 | `reviews/YYYY-MM-DD-exp-monitor.md` |
+| `/lab-deguard` | Agent 加入过多非目标相关 gate、validator、fallback、retry 或抽象层 | 识别防御性膨胀，建议 keep/simplify/remove/defer/clarify | `reviews/YYYY-MM-DD-exp-deguard.md` |
+| `/lab-handoff` | 要把任务交给 Agent，或把问题交给外部专家，也可回收 incoming 回复 | 支持 execution、expert-consultation、reply、summary；旧 `--type=implementation` 兼容 | `handoffs/outgoing/`、`incoming/`、`summaries/` |
+
+这些 vNext 产物可以用轻量 CLI 先生成草稿，例如 `lablock draft literature-review --topic alignment`、`lablock draft objective --exp exp-001 --topic alignment`、`lablock draft roadmap --exp exp-001`。handoff 可用 `lablock handoff --mode=execution --exp exp-001 --topic next-step` 或 `lablock handoff --mode=expert-consultation --topic training-anomaly`。这些命令只写 Markdown，不执行实验、不应用外部建议。
+
+旧的 `/lab-dashboard`、`/lab-guard`、`/lab-fork`、`/lab-autoplan` skill 已归档到 `archive/skills/`，不再由 `lablock update-skills` 默认安装。相关 CLI 和旧 `scope.lock` 数据结构仍保留，用于旧仓库兼容。
 
 ### 形式化、claim 与论文
 
@@ -199,25 +235,29 @@ LabLock skills 分两类：
 
 1. `/lab-init`
 2. `/lab-plan`
-3. `/lab-plan-exp`
-4. `/lab-exp-init`
-5. `/lab-exp-start`
+3. 可选：`/lab-taste` 检查问题重要性、共性结构和故事潜力
+4. `/lab-plan-exp`
+5. `/lab-exp-init`
+6. `/lab-exp-run`
+
+需要 Git 历史隔离、远端 CI、多人协作或归档历史时，再插入 `/lab-exp-start`。
 
 ### 接入已有科研仓库
 
 1. `/lab-migrate`
 2. 审阅迁移报告
 3. 同意后用 warn-only 初始化 LabLock
-4. 选择一个当前活跃实验，用 `/lab-exp-init` 创建第一个 `scope.lock`
-5. 跑 `/lab-audit`，确认后再逐步迁移旧实验
+4. 按迁移表把选中的旧 plan / run / result 用 `lablock migrate-node` 导入为 LabLock mirror nodes
+5. 选择一个当前活跃实验，用 `/lab-exp-init` 创建或细化第一个实验节点；legacy 项目会继续保留 `scope.lock`
+6. 跑 `/lab-monitor` 和 `/lab-audit`，确认 vNext 进度与审计能读到真实实验节点
 
 ### 实验中
 
 1. `/lab-exp-run`
 2. 正常改代码和提交
-3. 如果 hook 报 drift，走 `/lab-guard`
-4. drift 是新方向，用 `/lab-fork`
-5. drift 是 lock 错了，用 `lablock override --exp=... --reason=...` 并补 decision
+3. 如果 hook 报 drift，先用 `/lab-monitor` 或 `/lab-deguard` 判断它是否影响研究目标
+4. drift 是新方向，用 `lablock fork`
+5. drift 是 lock 错了，用 `lablock override --exp=... --reason=...`；只是探索性偏离时，在 `progress.md` 或 decision 中记录 continue-with-note
 
 ### 实验结束
 
@@ -225,6 +265,7 @@ LabLock skills 分两类：
 2. 成功：`/lab-cleanup-pr`
 3. 失败或 killed：`/lab-postmortem`
 4. 多个实验后：`/lab-synthesize`
+5. 当结果或方向需要重新判断价值时：`/lab-taste`
 
 ### 写 paper
 
@@ -258,6 +299,14 @@ lablock update
 ```bash
 lablock update --dry-run
 ```
+
+安装一个明确的预览分支 / tag / commit：
+
+```bash
+lablock update --ref codex/experiment-dashboard
+```
+
+`--ref` 会先在 canonical source 中执行 `git fetch origin <ref>` 并切到该 ref，再继续 `git pull --ff-only`、`bun install` 和 skill 刷新。不传 `--ref` 时，`lablock update` 仍然只更新当前 stable 分支。
 
 只刷新本地 skill 链接、不拉 GitHub、不重装依赖：
 
@@ -328,17 +377,20 @@ lablock github-ruleset check --branch=paper/draft --strict --json
 当前版本的下一步不是继续扩展 GitHub protection，而是在真实科研仓库里试跑完整闭环：
 
 ```text
-lab-init -> exp-init -> exp-start -> drift -> override/fork -> finalize -> audit
+lab-init -> exp-init -> exp-run -> drift warning -> guard/fork/override/note -> finalize -> audit
 ```
 
-执行协议见 [`docs/dogfood.md`](docs/dogfood.md)。dogfood 期间重点记录 friction：哪些 hook 太烦、哪些 lock 字段难填、哪些 audit 输出没有用、哪一次 drift 被正确拦住。
+执行协议见 [`docs/dogfood.md`](docs/dogfood.md)。dogfood 期间重点记录 friction：哪些 warning 有用、哪些 lock 字段难填、哪些 audit 输出没有用、哪一次 drift 帮助我们重新对齐研究目标。
 
 ## 核心数据结构
 
 | 文件 | 作用 |
 |---|---|
 | `.lablock/config.yaml` | 项目配置、CI 模式、protected branch/tag、模块开关 |
-| `.lablock/locks/<exp>.scope.lock` | 实验 scope contract：config / files / probes invariant |
+| `.lablock/naming.yaml` | 项目级命名 profile：minimal / paper-aligned / matrix-first |
+| `.lablock/variables.yaml` | canonical variable registry：变量 ID、代码 key、paper label、允许取值 |
+| `.lablock/matrices.yaml` | experiment matrix registry：矩阵 ID、主变量、受控轴、实验列表、paper target |
+| `.lablock/locks/<exp>.scope.lock` | 实验 research frame：目标、config / files / probes invariant |
 | `.lablock/changes/<exp>.changes.log` | 实验改动摘要 |
 | `.lablock/state/current-exp` | 当前关注实验，gitignored |
 | `.git/lablock-commit-meta.json` | hook 间传递 commit metadata，gitignored |
@@ -358,11 +410,11 @@ bun run typecheck
 当前测试覆盖：
 
 - unit tests：schema、frontmatter、lock、changes、classify、meta、change-index、ulid
-- integration tests：init -> exp-init -> exp-start -> drift block -> override/fork -> finalize -> postmortem -> drift audit
+- integration tests：init -> exp-init -> exp-run/current-exp -> drift warning -> guard/fork/note -> finalize -> postmortem -> drift audit
 - branch protection tests：protected branch/tag deletion、force-push 拒绝、真实 `pre-push` hook stdin 路径
 
 ## 状态
 
 当前版本：`0.1.0 beta-candidate`
 
-实现目标：LabLock v3 Phase 0 可运行骨架，进入 controlled dogfood。后续重点是用真实科研项目验证 `scope.lock -> drift -> fork/override -> finalize -> audit` 闭环，再补 probe templates 和 claim/paper parser。
+实现目标：LabLock v3 Phase 0 可运行骨架，进入 controlled dogfood。后续重点是用真实科研项目验证 `scope.lock -> drift warning -> guard/fork/override/note -> finalize -> audit` 闭环，再补 implementation handoff、probe templates 和 claim/paper parser。

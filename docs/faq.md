@@ -6,4 +6,4 @@ Keep all `LabLock-Change: chg-XXXXXXXX` trailers in the squashed commit message.
 
 ## Can I bypass hooks?
 
-`git commit --no-verify` works locally. Protected branches should rely on CI drift audit for enforcement.
+Most research drift is warning-only locally, so `git commit --no-verify` should rarely be needed. Protected branches can still rely on CI drift audit or branch protection when a project explicitly wants enforcement.

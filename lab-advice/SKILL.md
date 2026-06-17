@@ -6,15 +6,22 @@ disable-model-invocation: false
 related-skills:
   - lab-init
   - lab-migrate
+  - lab-literature-research
+  - lab-methodology-synthesis
+  - lab-research-story
   - lab-plan
+  - lab-plan-exp
+  - lab-roadmap
+  - lab-monitor
+  - lab-deguard
   - lab-exp-init
-  - lab-guard
+  - lab-research-debug
   - lab-audit
 ---
 
 # /lab-advice
 
-You are the LabLock skill router. The user does not know which LabLock skill fits their current task. Your job is to recommend the best matching `/lab-*` skill, or clearly say that no suitable LabLock skill exists.
+You are the LabLock vNext skill router. The user does not know which LabLock skill fits their current research workflow stage. Your job is to identify the stage, recommend the best matching `/lab-*` skill, and explain the expected artifact and next step.
 
 This skill is read-only. Do not initialize projects, create files, switch branches, run cleanup, write decisions, or invoke another side-effect skill automatically. Route first; act only if the user explicitly approves the next skill.
 
@@ -22,7 +29,7 @@ This skill is read-only. Do not initialize projects, create files, switch branch
 
 Return exactly one of:
 
-1. **One best skill** with confidence and why.
+1. **One best skill** with confidence, stage, artifact, and why.
 2. **Two or three candidate skills** only if the request is genuinely ambiguous, with the question needed to choose.
 3. **No suitable LabLock skill** when the task is outside LabLock's research workflow scope.
 
@@ -40,53 +47,80 @@ git status --short --branch
 
 Do not run expensive scans. Do not modify files.
 
-## Routing Table
+## vNext Stage Routing
 
-### Project setup and maintenance
+### Stage 0: Migration and compatibility
 
 - New research repo needs skeleton, hooks, CI, `CLAUDE.md` / `AGENTS.md`: `/lab-init`
-- Existing research repo has old scripts/plans/results and needs non-destructive adoption: `/lab-migrate`
+- Existing research repo has old scripts/plans/results and needs non-destructive adoption or legacy node import: `/lab-migrate`
+- Old LabLock repo needs vNext compatibility planning: `/lab-migrate` for now; future `/lab-vnext-migrate`
 - LabLock itself should be upgraded from GitHub or refreshed locally: `/lab-update`
-- User wants to know which skill to use: `/lab-advice`
 - Read-only project health, weekly check, stale state: `/lab-audit`
 - Repo cleanup candidates, stale branches, oversized files, orphan files: `/lab-tidy`
+- Graphical board request: explain that the old `/lab-dashboard` skill is archived; use `/lab-monitor` for vNext status
 
-### Planning and review
+### Stage 1: Research direction formation
 
 - Vague research idea, unclear question, need falsifiable hypotheses: `/lab-plan`
-- Single experiment needs IV/DV/controls/metrics/kill criteria: `/lab-plan-exp`
+- Idea needs literature research, paper lineage, gaps, or positioning: `/lab-literature-research`
+- Literature and resources need a candidate methodology: `/lab-methodology-synthesis`
+- Direction needs a coherent Research Narrative or Lab Story: `/lab-research-story`
 - Existing plan or hypothesis needs advisor/reviewer2/feasibility/novelty review: `/lab-review`
-- Need all four review perspectives and go/no-go dashboard: `/lab-autoplan`
+- Need several review perspectives: route to `/lab-review` with the relevant mode; the old `/lab-autoplan` bundle is archived
+- Need a research taste lens for direction choice, story potential, common-problem abstraction, anomaly meaning, or "科研品味": `/lab-taste`
 
-### Experiment lifecycle
+### Stage 2: Experiment plan and roadmap
 
-- Create experiment directory, hypothesis, config, and `scope.lock`: `/lab-exp-init`
-- Experiment files are committed and user needs experiment branch/current-exp: `/lab-exp-start`
-- Start a run, verify scope, set current-exp, record run command: `/lab-exp-run`
-- Commit is blocked by SCOPE-DRIFT: `/lab-guard`
-- Drift should become a new experiment baseline: `/lab-fork`
-- Experiment is done, killed, or superseded: `/lab-exp-finalize`
-- Failed/killed/superseded experiment needs lessons captured: `/lab-postmortem`
-- Done experiment should be promoted back to main cleanly: `/lab-cleanup-pr`
+- Research direction is ready to become an interactive experiment plan with stage goals, constraints, deliverables, and success criteria: `/lab-plan-exp`
+- Approved plan needs a step-by-step execution route: `/lab-roadmap`
+- Objective needs review for clarity, executability, verifiability, or defensive bloat: `/lab-review` for now; future `/lab-objective-review`
+- Plan is confirmed and experiment files should be created: `/lab-exp-init`
 
-### Debug and collaboration
+### Stage 3: Handoff orchestration
 
-- Failure needs reproduce -> trace -> hypotheses -> test before fixes: `/lab-debug`
+- Another AI should write experiment code/scripts under the current research objective: `/lab-handoff --mode=execution` or current `/lab-handoff --type=implementation`
+- External expert/advisor/community/AI should judge a problem or propose solution paths: `/lab-handoff --mode=expert-consultation`
+- Incoming handoff reply should be summarized or converted to next actions: `/lab-handoff --mode=reply`
 - Context must be packaged for external AI/teammate: `/lab-handoff`
 
-### Claims, formalism, and paper
+### Stage 4: Execution monitoring
+
+- User asks "where are we", "progress", "current result", "阶段性结论": `/lab-monitor`
+- Need a short current-state answer: `/lab-monitor` for now; future `/lab-status`
+- Need time-window digest from commits/handoffs/results/logs: `/lab-monitor` for now; future `/lab-progress-digest`
+- Start a run, verify scope, set current-exp, record run command: `/lab-exp-run`
+
+### Stage 5: Problem diagnosis
+
+- Failure needs research-aligned reproduce -> hypothesis -> minimal fix: `/lab-debug`
+- Experiment issue needs literature/docs/forum/community research plus local code diagnosis: `/lab-research-debug`
+- Unclear problem should be escalated to external expert: `/lab-handoff --mode=expert-consultation`
+
+### Stage 6: Interpretation and next decision
 
 - Multiple completed experiments need a claim/evidence synthesis: `/lab-synthesize`
+- Failed/killed/superseded experiment needs lessons captured: `/lab-postmortem`
+- Experiment is done, killed, or superseded: `/lab-exp-finalize`
+
+### Stage 7: Agent behavior degating
+
+- Agent adds broad gates, validators, retries, fallbacks, abstractions, or policy checks unrelated to the objective: `/lab-deguard`
+- Legacy `scope.lock` drift needs old guidance: mention archived `archive/skills/lab-guard`; prefer `/lab-deguard` or `/lab-monitor` for vNext alignment
+- Drift should become a new experiment baseline in a legacy/lock flow: use CLI `lablock fork`; the old `/lab-fork` skill is archived
+
+### Stage 8: Paper and knowledge capture
+
 - Math/loss/algorithm/formalism version needs update: `/lab-formalism-update`
 - Paper writing structure should be bootstrapped: `/lab-paper-init`
 - Draft paper section strictly from supported claims: `/lab-paper-write`
 - Audit paper draft claims against `claims.md`: `/lab-paper-audit`
+- Done experiment should be promoted back to main cleanly: `/lab-cleanup-pr`
 
 ## No-Match Cases
 
 Return "No suitable LabLock skill" for tasks like:
 
-- General coding unrelated to LabLock experiment workflow.
+- General coding unrelated to LabLock experiment workflow. If coding is for a LabLock experiment, route to `/lab-handoff --mode=execution` or legacy `/lab-handoff --type=implementation` to generate the prompt for the coding agent.
 - Asking for current weather, news, or web facts.
 - Generic package installation unrelated to LabLock.
 - Editing a normal document that is not LabLock planning/audit/paper workflow.
@@ -107,6 +141,7 @@ You may still suggest a normal non-LabLock path after saying no suitable LabLock
 For a clear match:
 
 ```text
+Stage: <vNext stage name>
 Recommended skill: `/lab-<name>`
 Confidence: high | medium
 
@@ -114,11 +149,14 @@ Why:
 - <reason 1>
 - <reason 2>
 
+Expected artifact:
+- <file or report>
+
 Use it like this:
 请使用 /lab-<name> ...
 
-What it will do:
-- <short operational summary>
+Next step after that:
+- <next skill or decision>
 ```
 
 For ambiguity:

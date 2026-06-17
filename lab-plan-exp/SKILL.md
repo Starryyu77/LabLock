@@ -1,178 +1,185 @@
 ---
 name: lab-plan-exp
 description: |
-  Design one experiment before scope.lock creation. Use for "design experiment", "plan an experiment", "design ablation", or "spec out exp". Defines IV, controls, metrics, expected outcomes, and criteria. Writes only to plans/.
+  vNext interactive experiment planning. Use when a research direction should become a clear, executable, verifiable plan with stage goals, roadmap, deliverables, success criteria, and anti-defensive-bloat review. Writes plans/.
 disable-model-invocation: false
 related-skills:
   - lab-plan
-  - lab-review
+  - lab-roadmap
+  - lab-deguard
+  - lab-handoff
   - lab-exp-init
 ---
 
 # /lab-plan-exp
 
-You are designing a single experiment. The user has typically already done `/lab-plan` (good) or has a hypothesis in mind (also OK, you'll surface the framing yourself).
+你负责把 Stage 1 形成的研究方向、方法论和研究叙述，转化为一个用户可确认、Agent 可执行、过程可监控的实验计划。
 
-The output of this skill is **a draft**. The next step is `/lab-exp-init`, which turns the draft into the actual `scope.lock`.
+这个 skill 的重点不再是传统的 IV/control 表格，也不是立刻生成 `scope.lock`。它是一个面向实际使用优化过的 Plan 功能：
 
-## Pre-flight
+1. 与用户交互，逐步澄清目标、约束、预期产物和可接受的探索范围。
+2. 设计一步一步的 Roadmap，让执行 Agent 知道先做什么、后做什么。
+3. 审查目标是否清晰、可执行、可验证，并且没有过度防御。
 
-Ask the user:
+## 何时使用
 
-- "Do you have a `/lab-plan` for this experiment, or are we starting from a hypothesis directly?"
-- "What's the parent experiment (or `none` for root)?"
+- 用户已经有研究方向，但还不知道如何交给 Agent 执行。
+- Stage 1 已经产出 `research/literature-review.md`、`methodology.md`、`story.md` 或 `plan.md`。
+- 用户说“帮我设计实验计划”“把这个目标拆成可执行路线”“我想让 Agent 做这个实验”。
+- 旧式单实验设计也可以使用本 skill，但输出应优先包含 plan / roadmap / objective。
 
-If parent is given, read `experiments/<parent>-*/hypothesis.md` and the corresponding `.lablock/locks/<parent>.scope.lock`. You'll use these to suggest controlled variables and avoid duplication.
+## 不何时使用
 
-## Step 1: Independent variable (IV)
+- idea 还很模糊，缺少研究方向。先用 `/lab-plan` 或 Stage 1 skills。
+- 只是要创建实验文件。用 `/lab-exp-init`，但应先确认 plan。
+- 已有 plan 只需要拆步骤。用 `/lab-roadmap`。
+- 用户要执行代码。先完成 plan/roadmap，再用 `/lab-handoff --mode=execution`。
 
-Ask: "What's the ONE thing you're changing?"
+## 输入
 
-The answer must be **one variable**. If the user proposes two (e.g., "add contrastive AND change lr"), force a choice: "Pick one—running them together makes the result uninterpretable. Which is the experiment?"
+优先读取：
 
-Acceptable IVs:
-- Adding a loss term
-- Replacing a module
-- Changing a hyperparameter (single value)
-- Switching dataset
+- `research/direction.md`
+- `research/literature-review.md`
+- `research/methodology.md`
+- `research/story.md`
+- `research/plan.md`
+- existing `plans/*.md`
+- related `experiments/<exp>/results.md` or `interpretation.md`
 
-## Step 2: Controlled variables (CV)
+如果没有文件，直接和用户交互收集：
 
-Walk through every variable in the parent experiment's config. For each:
+- 研究目标
+- 当前阶段目标
+- 已有依据
+- 预期产物
+- 可接受探索范围
+- 约束和资源
+- 验证方式
 
-- Is this fixed in the new exp? → goes to `controlled_variables`
-- Is this changed? → if yes and it's not the IV, **stop**. Either it's part of the IV (revise Step 1) or it's drift (refuse the design).
+## Step 1: 用户交互澄清
 
-Be strict. The whole point of this skill is to prevent ambiguous experiments.
+必须先问清楚：
 
-## Step 3: Evaluation metric
+- 这个实验服务的总研究目标是什么？
+- 当前阶段最想得到什么结果或信息？
+- Agent 最终应该交付什么？
+- 哪些路径可以探索？
+- 哪些内容不应该变成主线？
+- 哪些结果算阶段性成功？
+- 哪些情况需要停下来问用户？
 
-Ask:
+不要直接替用户假定目标、阶段和成功标准。
 
-- **Primary metric**: one number, comparable to baseline. (e.g., "Top-1 accuracy on ImageNet val", "perplexity on WikiText-2 test", "Recall@1 on Flickr30k")
-- **Secondary metrics**: 0-3 supporting numbers.
-- **Statistical handling**: how many seeds? Mean ± std? Bootstrapped CI? "Run 1 seed and call it" is acceptable for early experiments but flag it.
+## Step 2: 计划草案
 
-Reject metrics that have no shared definition with the baseline. ("Custom score" without a paper reference is a red flag.)
-
-## Step 4: Predicted outcomes
-
-Ask the user to predict, **before running**:
-
-- **If H1 is true**: expected metric value range
-- **If H0 is true**: expected metric value range (often this is the baseline number)
-- **What outcome would surprise me**: forces the user to think about what could go wrong
-
-This is core to good experimental hygiene—pre-registered predictions reduce post-hoc rationalization.
-
-## Step 5: Kill criteria and budget
-
-Ask:
-
-- **Compute budget**: GPU-hours allocated. If exceeded, kill.
-- **Time budget**: calendar days. If exceeded, kill.
-- **Failure modes that abort**: numerical (e.g., "loss diverges"), behavioral (e.g., "outputs become repetitive"), correctness (e.g., "loss_contract test fails").
-- **Threshold for declaring failure**: how much worse than baseline before we conclude H0?
-
-These map to the `kill_criteria` array in scope.lock. Give specific numbers.
-
-## Step 6: Success criteria
-
-Tied to Step 4 predictions:
-
-- "Metric ≥ baseline + N% with p < 0.05" (if doing stats)
-- "Metric ≥ baseline + N% in single-seed run" (early-stage)
-- "Behavioral observation: <specific qualitative result>"
-
-These map to `success_criteria` in scope.lock.
-
-## Step 7: Probes (if applicable)
-
-Suggest contract tests for things that should NOT change. If the user's IV is "add contrastive loss", possible probes:
-
-- `loss_contract`: when λ=0, total loss equals the previous version exactly
-- `dataloader_contract`: sampling behavior unchanged
-
-If the user has no probes in mind, that's fine—Layer 1 + 2 in scope.lock will still catch most drift.
-
-## Step 8: Write the draft
-
-Save to:
-
-```
-plans/<date>-exp-<shortname>.md
-```
-
-Format:
+把用户回答整理成 `plan.md` 结构：
 
 ```markdown
----
-created: <date>
-status: design
-parent: <exp-NNN | none>
-target_exp_id: (will be assigned at /lab-exp-init)
----
+# Experiment Plan: <topic>
 
-# Design: <shortname>
+## Total Research Goal
+<研究总目标>
 
-## Hypothesis (one sentence)
-<from Step 1, refined>
+## Current Stage Goal
+<当前阶段目标>
 
-## Independent variable
-<the one thing>
+## Confirmed User Intent
+- <用户明确确认的目标和约束>
 
-## Controlled variables
-- key=value
-- ...
+## Core Idea To Test
+<这个实验要验证的核心想法>
 
-## Evaluation
-- Primary: <metric>
-- Secondary: ...
-- Seeds: <N>
+## Expected Deliverables
+- <产物 1>
+- <产物 2>
 
-## Predictions
-- If H1: <range>
-- If H0: <range>
-- Surprise: <what would surprise me>
+## Exploration Space
+### Allowed
+- <可以探索的路径>
 
-## Kill criteria
-- ...
+### Should Not Become Mainline
+- <不应该变成主线的内容>
 
-## Success criteria
-- ...
+## Success Criteria
+- <可验证的阶段性成功标准>
 
-## Probes (optional)
-- name | command | reason
-
-## Suggested CLI invocation
-\`\`\`bash
-lablock exp-init <shortname> \\
-  --parent=<parent> \\
-  --hypothesis="..." \\
-  --config="<csv>" \\
-  --control-modified="<csv>" \\
-  --file-invariant="<csv>" \\
-  --kill="<csv>" \\
-  --success="<csv>" \\
-  --stage
-\`\`\`
+## Stop And Report Conditions
+- <需要暂停并汇报的情况>
 ```
 
-The pre-rendered CLI command is the bridge to `/lab-exp-init`—the user can copy-paste and run.
+## Step 3: Roadmap 草案
 
-## Step 9: Suggest review
+如果计划足够清楚，继续起草 Roadmap。也可以建议用户单独运行 `/lab-roadmap`。
 
-Tell the user:
+Roadmap 至少包含 3 类信息：
 
-> This is a draft. Before running, consider:
-> - `/lab-review --as=reviewer2 plans/<this-file>.md` to stress-test the design
-> - `/lab-review --as=feasibility plans/<this-file>.md` to check compute / time budget realism
->
-> Or if you're confident, run the suggested CLI command and continue with `/lab-exp-start`.
+- 阶段和步骤
+- 每一步的输入、动作、输出
+- 每一步的验证点和用户确认点
 
-## Don't
+不要把所有不确定性都变成 gate。只保留能直接服务研究目标的验证点。
 
-- Don't accept multi-variable experiments. One IV.
-- Don't accept "we'll figure it out" for kill criteria. Push for specific numbers.
-- Don't write the actual scope.lock here. That's `/lab-exp-init`'s job.
-- Don't skip Step 4 (predictions). Pre-registered predictions are the difference between an experiment and a fishing expedition.
+## Step 4: Objective 摘要
+
+从 plan 和 roadmap 中提炼一个 Agent-facing objective：
+
+- 当前阶段目标
+- 允许探索范围
+- 预期产物
+- 验证方式
+- 结果写回位置
+- 避免过度防御的提醒
+
+这个 `objective.md` 是给 `/lab-handoff --mode=execution` 使用的执行摘要，不一定替代旧 `hypothesis.md`。
+
+## Step 5: 目标审查
+
+审查以下问题：
+
+- 目标是否清晰？
+- 执行路径是否具体？
+- 验证方式是否足够？
+- 结果写回位置是否明确？
+- 是否出现无关的 gate、validator、fallback、retry、抽象层？
+- 是否保留了基础安全边界？
+
+如果发现过度防御，建议 `/lab-deguard`。
+
+## 输出位置
+
+如果实验目录不存在，写入：
+
+```text
+plans/<date>-<topic>-vnext-plan.md
+```
+
+如果实验目录已存在，建议写入：
+
+```text
+experiments/<exp>/plan.md
+experiments/<exp>/roadmap.md
+experiments/<exp>/objective.md
+```
+
+可用轻量草稿命令先落盘模板：
+
+```bash
+lablock draft objective --exp <exp-id> --topic <topic>
+lablock draft roadmap --exp <exp-id> --topic <topic>
+```
+
+## 下一步
+
+- Roadmap 不够细：`/lab-roadmap`
+- 计划可执行：`/lab-handoff --mode=execution`
+- 需要创建实验目录：`/lab-exp-init`
+- 发现防御性膨胀：`/lab-deguard`
+- 需要监控执行：`/lab-monitor`
+
+## 不要
+
+- 不要把本 skill 变成写代码 skill。
+- 不要直接生成 `scope.lock`；旧兼容仍由 `/lab-exp-init` 处理。
+- 不要为了显得安全而加入宽泛 gate。
+- 不要隐藏关键不确定性；把它写成 Roadmap 中的验证点或用户确认点。

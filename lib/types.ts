@@ -1,14 +1,77 @@
 import { z } from 'zod';
 
 export const ExpIdSchema = z.string().regex(/^exp-\d{3}$/);
+export const VariableIdSchema = z.string().regex(/^var-\d{3}$/);
+export const MatrixIdSchema = z.string().regex(/^mat-\d{3}$/);
 export const ClaimIdSchema = z.string().regex(/^C\d+$/);
 export const ProofIdSchema = z.string().regex(/^proof-\d+$/);
 export const ChangeIdSchema = z.string().regex(/^chg-[0-9A-Z]{8}$/);
 export const FormalismVersionSchema = z.string().regex(/^v\d+$/);
+export const CanonicalVariableNameSchema = z.string().regex(/^[a-z][a-z0-9_]*$/);
+export const RegistrySlugSchema = z.string().regex(/^[a-z][a-z0-9-]*$/);
 export const DateLikeStringSchema = z.preprocess(
   (value) => value instanceof Date ? value.toISOString().slice(0, 10) : value,
   z.string().datetime({ offset: true }).or(z.string().regex(/^\d{4}-\d{2}-\d{2}$/)),
 );
+
+export const NamingProfileValueSchema = z.enum(['minimal', 'paper-aligned', 'matrix-first']);
+export type NamingProfileValue = z.infer<typeof NamingProfileValueSchema>;
+
+export const NamingConfigSchema = z.object({
+  version: z.literal(1),
+  profile: NamingProfileValueSchema,
+  canonical_variable_style: z.enum(['snake_case']),
+  experiment_shortname_pattern: z.string(),
+  matrix_slug_pattern: z.string(),
+  require_variable_registry: z.boolean(),
+  require_matrix_registry: z.boolean(),
+  paper_label_required: z.boolean(),
+  reserved_suffixes: z.array(z.string()),
+});
+export type NamingConfig = z.infer<typeof NamingConfigSchema>;
+
+export const VariableRegistryEntrySchema = z.object({
+  var_id: VariableIdSchema,
+  canonical_name: CanonicalVariableNameSchema,
+  paper_label: z.string().min(1),
+  code_keys: z.array(z.string()),
+  type: z.enum(['categorical', 'numeric', 'boolean', 'text']),
+  role: z.enum(['independent_variable', 'controlled_variable', 'metric', 'dataset', 'baseline', 'implementation_detail']),
+  allowed_values: z.array(z.string()).optional(),
+  notes: z.string().optional(),
+});
+export const VariableRegistrySchema = z.object({
+  version: z.literal(1),
+  variables: z.array(VariableRegistryEntrySchema),
+});
+export type VariableRegistry = z.infer<typeof VariableRegistrySchema>;
+
+export const MatrixRegistryEntrySchema = z.object({
+  matrix_id: MatrixIdSchema,
+  slug: RegistrySlugSchema,
+  research_question: z.string().min(1),
+  primary_variable: z.union([VariableIdSchema, CanonicalVariableNameSchema]),
+  controlled_axes: z.array(CanonicalVariableNameSchema),
+  experiments: z.array(ExpIdSchema),
+  paper_target: z.string().nullable().optional(),
+  notes: z.string().optional(),
+});
+export const MatrixRegistrySchema = z.object({
+  version: z.literal(1),
+  matrices: z.array(MatrixRegistryEntrySchema),
+});
+export type MatrixRegistry = z.infer<typeof MatrixRegistrySchema>;
+
+export const ExperimentNamingRefSchema = z.object({
+  matrix_id: MatrixIdSchema.optional(),
+  variable_id: VariableIdSchema.optional(),
+  canonical_variable: CanonicalVariableNameSchema.optional(),
+  variant_value: z.string().min(1).optional(),
+  paper_label: z.string().min(1).optional(),
+}).refine((v) => Boolean(v.matrix_id || v.variable_id || v.canonical_variable || v.variant_value || v.paper_label), {
+  message: 'naming reference must contain at least one field',
+});
+export type ExperimentNamingRef = z.infer<typeof ExperimentNamingRefSchema>;
 
 export const ExperimentFrontmatterSchema = z.object({
   id: ExpIdSchema,
@@ -24,6 +87,7 @@ export const ExperimentFrontmatterSchema = z.object({
   drift_commit: z.string().regex(/^[a-f0-9]{7,40}$/).nullable().optional(),
   kill_criteria_met: z.boolean().nullable().optional(),
   finalized_at: z.string().nullable().optional(),
+  naming: ExperimentNamingRefSchema.optional(),
 });
 export type ExperimentFrontmatter = z.infer<typeof ExperimentFrontmatterSchema>;
 
@@ -96,6 +160,7 @@ export const ScopeLockSchema = z.object({
     return Boolean(configNonEmpty || v.files?.length || v.probes?.length);
   }, { message: 'At least one invariant layer must be non-empty' }),
   controlled_changes: ControlledChangesSchema,
+  naming: ExperimentNamingRefSchema.optional(),
   kill_criteria: z.array(z.string()).min(1),
   success_criteria: z.array(z.string()).min(1),
 });

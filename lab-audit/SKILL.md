@@ -1,7 +1,7 @@
 ---
 name: lab-audit
 description: |
-  Read-only project health check. Use for "audit", "project health", "weekly check", or "what's stale". Aggregates frontmatter, scope drift, claim coverage, orphan files, drift accountability, and weekly activity into reviews/audit-<date>.md.
+  Read-only research alignment check. Use for "audit", "project health", "weekly check", or "are we still on target?". Aggregates objective alignment, frontmatter, scope drift notes, claim coverage, orphan files, and weekly activity into reviews/audit-<date>.md.
 disable-model-invocation: false
 related-skills:
   - lab-tidy
@@ -9,7 +9,7 @@ related-skills:
 
 # /lab-audit
 
-You are running a project-level audit. Read-only. The output is a single markdown report under `reviews/`.
+You are running a project-level research alignment audit. Read-only. The output is a single markdown report under `reviews/`. The main question is whether current work still advances the project's original research goal.
 
 ## Pre-flight
 
@@ -24,7 +24,7 @@ Lightest mode. Just the week's activity:
 - Commits in the last 7 days (count, authors, by branch)
 - Experiments started: list of new exp-IDs with their hypothesis one-liners
 - Experiments finalized: list with status
-- Drift events: any `[SCOPE-DRIFT]` commits
+- Drift events: any `[SCOPE-DRIFT]` commits, summarized as alignment notes
 - Override events: count + brief reasons
 - Open handoffs (`handoffs/outgoing/*` without matching `incoming/*`)
 - Formalism bumps: any `formalism-v*` tags created
@@ -63,8 +63,8 @@ For each orphan: suggest where it should be indexed, or whether it should be arc
 All of the above, plus:
 
 5. **Frontmatter validity**: run `lablock-frontmatter-check --strict`. Any failures listed.
-6. **Drift accountability**: run `lablock-drift-audit --strict`. Unaccounted SCOPE-DRIFT commits listed.
-7. **All-active scope verification**: run `lablock-verify-scope --all-active --source=head`. Any active experiment whose lock disagrees with current `main` state → flag (could mean a parent merge introduced drift).
+6. **Drift alignment notes**: run `lablock-drift-audit --json`. Unclassified SCOPE-DRIFT commits are listed as interpretation caveats, not automatic failures.
+7. **All-active scope verification**: run `lablock-verify-scope --all-active --source=head`. Any active experiment whose lock disagrees with current `main` state → explain whether this likely helps, changes, or distracts from the original hypothesis.
 8. **Index freshness**: check that `MAP.md` was regenerated after the latest commit affecting hypothesis or lock files. If stale, suggest running `lablock-map`.
 9. **Postmortem coverage**: experiments with status `killed` or `superseded` but no `postmortem.md` → list.
 10. **`.lablock/learnings.jsonl` size**: report count. If > 1000 entries, suggest archiving.
@@ -97,7 +97,7 @@ created: <date>
 | Check | Issues |
 |---|---|
 | Frontmatter | <count> |
-| Drift accountability | <count> |
+| Drift alignment notes | <count> |
 | Active scope | <count> |
 | Coverage | <count> |
 | Formalism stale refs | <count> |
@@ -105,7 +105,7 @@ created: <date>
 | Postmortem coverage | <count> |
 | Index freshness | <fresh|stale> |
 
-**Health verdict**: GREEN / YELLOW / RED
+**Alignment verdict**: ON-TRACK / NEEDS-FOCUS / HIGH-RISK
 
 ## Weekly digest
 
@@ -116,7 +116,7 @@ created: <date>
 ### Frontmatter
 - ...
 
-### Drift accountability
+### Drift alignment notes
 - ...
 
 ### ...
@@ -124,11 +124,13 @@ created: <date>
 
 ## Step 3: Verdict
 
-- **GREEN**: 0 critical issues. Project healthy.
-- **YELLOW**: ≤ 5 minor issues, no critical. Address at convenience.
-- **RED**: any of:
+- **ON-TRACK**: current work is coherent with the research goal.
+- **NEEDS-FOCUS**: there are caveats or stale areas, but the main direction is still usable.
+- **HIGH-RISK**: current work likely no longer tests the stated goal unless reframed.
+
+High-risk triggers include:
   - frontmatter validation failures
-  - unaccounted SCOPE-DRIFT
+  - repeated unclassified SCOPE-DRIFT that changes interpretation
   - active experiments with current scope drift
   - empirical claims with no evidence
 
@@ -139,8 +141,8 @@ Print the verdict prominently.
 For each non-empty category, suggest a follow-up:
 
 - **Frontmatter failures** → fix or run `/lab-init --migrate` for legacy files.
-- **Unaccounted drift** → `lablock override` or `/lab-fork` per offending commit.
-- **Active scope drift** → `/lab-guard` per affected experiment.
+- **Drift alignment notes** → `/lab-guard` per affected experiment when classification is needed.
+- **Active scope drift** → decide whether to fork, override, continue-with-note, or recenter.
 - **Coverage gaps** → run experiments to support claims, or weaken claims via `/lab-paper-write`.
 - **Formalism stale refs** → review per file; some may be intentional (postmortems, archived experiments).
 - **Orphans** → add to index or archive.
@@ -156,21 +158,21 @@ Audit complete: reviews/audit-<date>.md
 
 <summary table>
 
-Verdict: <GREEN | YELLOW | RED>
+Alignment: <ON-TRACK | NEEDS-FOCUS | HIGH-RISK>
 
 <top 3-5 suggested actions>
 ```
 
 ## Special cases
 
-- **Just-initialized project**: many checks return empty. That's healthy; report GREEN with note "project just initialized".
-- **Audit during active scope drift**: this is normal mid-experiment; flag but don't fail unless drift is unaccounted.
+- **Just-initialized project**: many checks return empty. That's healthy; report ON-TRACK with note "project just initialized".
+- **Audit during active scope drift**: this is normal mid-experiment; describe the alignment impact instead of failing the audit.
 - **Audit on a paper branch**: skip experiment-related checks; focus on paper/audit + claims-to-evidence integrity.
 
 ## Don't
 
 - Don't modify any files. This is read-only.
-- Don't soft-pedal RED verdicts.
+- Don't soft-pedal high-risk findings.
 - Don't run all modes at once if user requested a narrow mode—respect the scope.
 - Don't include the user's git credentials, tokens, or secrets in any output.
 - Don't repeat-spam findings. If the same orphan appeared in last week's audit, mention "(also in last audit)" rather than acting like it's new.

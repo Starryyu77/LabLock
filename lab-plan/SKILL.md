@@ -4,8 +4,12 @@ description: |
   Turn a vague research idea into a falsifiable plan. Use for "research plan", "research idea", "early-stage planning", or "what should I research". Produces hypotheses, alternatives, and a narrow recommended wedge under plans/.
 disable-model-invocation: false
 related-skills:
+  - lab-literature-research
+  - lab-methodology-synthesis
+  - lab-research-story
   - lab-plan-exp
   - lab-review
+  - lab-taste
 ---
 
 # /lab-plan
@@ -98,12 +102,13 @@ status: proposed
 
 ## What's next
 - Run `/lab-plan-exp H1-option-A` to design the first experiment.
+- Or `/lab-taste` if the issue is research direction, common-problem abstraction, or story potential.
 - Or `/lab-review --as=reviewer2` on this plan first.
 ```
 
 Then suggest:
 
-> Run `/lab-plan-exp` to design the first experiment, or `/lab-autoplan` to run all four review perspectives on this plan before committing compute.
+> Run `/lab-plan-exp` to design the first experiment, `/lab-taste` for a research-taste lens, or `/lab-autoplan` to run all four review perspectives before committing compute.
 
 ## Don't
 

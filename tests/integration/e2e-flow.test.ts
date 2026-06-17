@@ -49,8 +49,12 @@ afterEach(async () => {
 });
 
 describe('LabLock E2E lifecycle', () => {
-  test('init, drift block, override, fork, and drift audit', async () => {
+  test('init, drift warning, fork, and drift audit', async () => {
     await run([process.execPath, lablock, 'init-project', '--name', 'E2E', '--modules', 'gpu,data,lit', '--ci-mode', 'warn-only'], cwd);
+    const namingConfig = yaml.load(await readFile(join(cwd, '.lablock/naming.yaml'), 'utf8')) as any;
+    expect(namingConfig.profile).toBe('paper-aligned');
+    expect(await readFile(join(cwd, '.lablock/variables.yaml'), 'utf8')).toContain('variables: []');
+    expect(await readFile(join(cwd, '.lablock/matrices.yaml'), 'utf8')).toContain('matrices: []');
     await writeFile(join(cwd, 'src-model.txt'), 'base\n');
     await git(cwd, ['add', '.']);
     await git(cwd, ['commit', '-m', 'init']);
@@ -66,6 +70,16 @@ describe('LabLock E2E lifecycle', () => {
       'optimizer.lr=0.001,seed=1',
       '--control-modified',
       'baseline config',
+      '--matrix-id',
+      'mat-001',
+      '--variable-id',
+      'var-001',
+      '--canonical-variable',
+      'optimizer_lr',
+      '--variant-value',
+      '0.001',
+      '--paper-label',
+      'Baseline learning rate',
       '--file-invariant',
       'src-model.txt:base model must stay fixed',
       '--kill',
@@ -75,30 +89,42 @@ describe('LabLock E2E lifecycle', () => {
       '--stage',
     ], cwd);
     await git(cwd, ['commit', '-m', 'create baseline']);
+    const lock = yaml.load(await readFile(join(cwd, '.lablock/locks/exp-001.scope.lock'), 'utf8')) as any;
+    expect(lock.naming.matrix_id).toBe('mat-001');
+    expect(lock.naming.canonical_variable).toBe('optimizer_lr');
+    const hypothesis = yaml.load((await readFile(join(cwd, 'experiments/exp-001-baseline/hypothesis.md'), 'utf8')).split('---')[1]) as any;
+    expect(hypothesis.naming.paper_label).toBe('Baseline learning rate');
     const matrix = await readFile(join(cwd, 'experiments/matrix.md'), 'utf8');
     expect(matrix).toContain('exp-001');
     expect(matrix).not.toContain('No experiments yet');
     await writeFile(join(cwd, '.lablock/state/current-exp'), 'exp-001\n');
 
+    const researchDebug = await run([
+      process.execPath,
+      lablock,
+      'research-debug',
+      '--topic',
+      'loss-spike',
+      '--symptom',
+      'loss diverges after step 800',
+    ], cwd);
+    const reportPath = researchDebug.stdout.trim();
+    expect(reportPath).toContain('reviews/');
+    const report = await readFile(join(cwd, reportPath), 'utf8');
+    expect(report).toContain('# Research Debug: loss spike');
+    expect(report).toContain('loss diverges after step 800');
+    expect(report).toContain('Baseline locks the optimizer learning rate.');
+    expect(report).toContain('## External Research Plan');
+    expect(report).toContain('## Local Code Analysis');
+
     const configPath = join(cwd, 'experiments/exp-001-baseline/config.yaml');
     await writeFile(configPath, 'optimizer:\n  lr: 0.002\nseed: 1\n');
     await git(cwd, ['add', 'experiments/exp-001-baseline/config.yaml']);
-    const blocked = await git(cwd, ['commit', '-m', 'change lr'], 1);
-    expect(`${blocked.stdout}\n${blocked.stderr}`).toContain('SCOPE-DRIFT detected');
-
-    const override = await run([
-      process.execPath,
-      lablock,
-      'override',
-      '--exp',
-      'exp-001',
-      '--reason',
-      'Need to test the scheduler at a lower learning rate.',
-    ], cwd);
-    expect(override.stdout).toContain('Override recorded: chg-');
-    await git(cwd, ['commit', '-m', 'accept lr drift']);
-    const lastOverrideCommit = await git(cwd, ['log', '-1', '--format=%B']);
-    expect(lastOverrideCommit.stdout).toContain('LabLock-Override: chg-');
+    const drift = await git(cwd, ['commit', '-m', 'change lr']);
+    expect(`${drift.stdout}\n${drift.stderr}`).toContain('SCOPE-DRIFT warning');
+    const lastDriftCommit = await git(cwd, ['log', '-1', '--format=%B']);
+    expect(lastDriftCommit.stdout).toContain('[exp-001][SCOPE-DRIFT] change lr');
+    expect(await readFile(join(cwd, '.lablock/changes/exp-001.changes.log'), 'utf8')).toContain('[SCOPE-DRIFT]');
 
     await writeFile(join(cwd, 'src-model.txt'), 'changed\n');
     await git(cwd, ['add', 'src-model.txt']);
@@ -117,8 +143,8 @@ describe('LabLock E2E lifecycle', () => {
     expect(fork.stdout).toContain('Experiment forked: exp-001 -> exp-002');
     await git(cwd, ['commit', '-m', 'fork model drift']);
 
-    const audit = await run([process.execPath, join(repoRoot, 'bin/lablock-drift-audit.ts'), '--strict', '--json'], cwd);
-    expect(audit.stdout).toContain('"unaccounted": []');
+    const audit = await run([process.execPath, join(repoRoot, 'bin/lablock-drift-audit.ts'), '--json'], cwd);
+    expect(audit.stdout).toContain('"unaccounted": [');
   });
 
   test('pre-commit runs local probes when project config enables them', async () => {
@@ -159,7 +185,8 @@ describe('LabLock E2E lifecycle', () => {
     await writeFile(join(cwd, '.lablock/state/current-exp'), 'exp-001\n');
     await writeFile(join(cwd, 'notes.md'), '# Notes\n\nNo scope changes.\n');
     await git(cwd, ['add', 'notes.md']);
-    const blocked = await git(cwd, ['commit', '-m', 'probe-gated note'], 1);
-    expect(`${blocked.stdout}\n${blocked.stderr}`).toContain('SCOPE-DRIFT detected');
+    const drift = await git(cwd, ['commit', '-m', 'probe-gated note']);
+    expect(`${drift.stdout}\n${drift.stderr}`).toContain('SCOPE-DRIFT warning');
+    expect((await git(cwd, ['log', '-1', '--format=%B'])).stdout).toContain('[exp-001][SCOPE-DRIFT] probe-gated note');
   });
 });

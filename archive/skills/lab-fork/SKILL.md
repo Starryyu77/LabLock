@@ -112,19 +112,19 @@ echo "<new-id>" > .lablock/state/current-exp
 
 This is gitignored; doesn't need committing. Future commits will be tracked to `<new-id>`.
 
-If parallel fork: leave `current-exp` as `<from>` and tell the user they can switch later via `/lab-exp-start --exp=<new-id>` (which creates a new branch).
+If parallel fork: leave `current-exp` as `<from>` unless the user wants to focus the new folder now. Folder isolation is enough for parallel execution; `/lab-exp-start --exp=<new-id>` is only for optional Git branch isolation.
 
 ## Step 7: Branch decision
 
 For drift forks, the **same git branch** continues, just now scoped to the new exp. No new branch needed.
 
-For parallel forks, the user typically wants a new branch:
+For parallel forks, prefer a separate experiment folder without a new branch. If the user explicitly needs branch-based history isolation, they can create one:
 
 ```bash
 git checkout -b "exp/<new-id>-<shortname>"
 ```
 
-Suggest this only for parallel forks.
+Suggest this only when the user explicitly asks for branch isolation, remote CI, or archival history.
 
 ## Failure modes
 

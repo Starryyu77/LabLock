@@ -1,6 +1,6 @@
 # Controlled Dogfood Protocol
 
-LabLock v0.1 should be dogfooded on a real research repository before calling it beta. The goal is not to prove every command works in isolation; it is to find whether `scope.lock` prevents real experiment drift without making normal research work too expensive.
+LabLock v0.1 should be dogfooded on a real research repository before calling it beta. The goal is not to prove every command works in isolation; it is to find whether `scope.lock` keeps work aligned to the research objective without making normal research work too expensive.
 
 ## Scope
 
@@ -19,9 +19,10 @@ Dogfood passes if all of these are true:
 
 - `/lab-init` or `lablock init-project` can initialize without manual file surgery.
 - `lablock exp-init` creates a useful `scope.lock` in under 20 minutes.
-- `lablock exp-start` creates a clean experiment branch and current-exp state.
-- An intentional config drift is blocked by pre-commit until override/fork accountability exists.
-- `lablock override` lets an intentional drift commit pass with a valid decision and trailer.
+- A folder-isolated experiment can run from `experiments/<exp>-<shortname>/` without creating a Git experiment branch.
+- Optional `lablock exp-start` still works when branch isolation is explicitly requested for collaboration, remote CI, or archival history.
+- An intentional config drift produces a SCOPE-DRIFT warning and is recorded without blocking local progress.
+- `/lab-guard`, `lablock override`, or `/lab-fork` can classify drift when interpretation matters.
 - `lablock fork` creates a new experiment when an invariant file changes.
 - `lablock exp-finalize`, `lablock postmortem`, and drift audit produce usable closeout artifacts.
 - The researcher can explain at least one accident LabLock would have prevented.
@@ -38,7 +39,7 @@ Record each friction item with:
 
 | Field | Meaning |
 |---|---|
-| `phase` | init, exp-init, exp-start, drift, override, fork, finalize, audit |
+| `phase` | init, exp-init, exp-run, optional-exp-start, drift, override, fork, finalize, audit |
 | `severity` | blocker, slows-work, annoyance, unclear-doc |
 | `trigger` | command or workflow moment |
 | `what happened` | concrete output or behavior |
@@ -79,14 +80,18 @@ lablock exp-init baseline \
   --stage
 
 git commit -m "Create baseline experiment"
-lablock exp-start --exp=exp-001
 ```
+
+Then invoke `/lab-exp-run --exp=exp-001` from the agent environment. This records the active experiment focus and run metadata without creating a Git experiment branch.
 
 Record:
 
 - which `scope.lock` fields were hard to fill;
 - whether config/file invariants were obvious;
+- whether folder-local paths for config, outputs, logs, checkpoints, and results were easy to understand;
 - whether the command names matched user expectations.
+
+Only run `lablock exp-start --exp=exp-001` if this dogfood pass is explicitly testing optional Git branch isolation.
 
 ## Day 2: Drift Handling
 
@@ -98,13 +103,12 @@ git add experiments/exp-001-*/config.yaml
 git commit -m "Change lr"
 ```
 
-Expected: commit is blocked with `SCOPE-DRIFT`.
+Expected: commit succeeds with a `SCOPE-DRIFT` warning and a changes-log entry.
 
-Then test override:
+Then classify if needed:
 
 ```bash
-lablock override --exp=exp-001 --reason="Intentional one-shot drift for scheduler check."
-git commit -m "Accept scheduler drift"
+/lab-guard --exp=exp-001
 ```
 
 Then simulate file invariant drift and fork:
@@ -118,7 +122,7 @@ git commit -m "Fork source drift"
 
 Record:
 
-- whether the block message was actionable;
+- whether the SCOPE-DRIFT warning was actionable;
 - whether override/fork felt like the right mental model;
 - whether generated decision files were useful or noisy.
 
@@ -136,7 +140,7 @@ git commit -m "Finalize exp-001"
 Run audit commands:
 
 ```bash
-lablock-drift-audit --strict --json
+lablock-drift-audit --json
 lablock-frontmatter-check --strict
 lablock github-protection check --branch=main --required-status=lablock-checks --required-reviews=1 --strict --json
 ```

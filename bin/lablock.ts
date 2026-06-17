@@ -5,7 +5,18 @@ import { homedir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import yaml from 'js-yaml';
-import { DEFAULT_PROJECT_CONFIG, type ScopeLock } from '../lib/types.ts';
+import {
+  DEFAULT_PROJECT_CONFIG,
+  CanonicalVariableNameSchema,
+  ExpIdSchema,
+  ExperimentNamingRefSchema,
+  MatrixIdSchema,
+  NamingProfileValueSchema,
+  VariableIdSchema,
+  type ExperimentNamingRef,
+  type NamingProfileValue,
+  type ScopeLock,
+} from '../lib/types.ts';
 import { PATHS } from '../lib/paths.ts';
 import { readProjectConfig, setProjectConfigPath, getProjectConfigPath, writeProjectConfig } from '../lib/config.ts';
 import { renderTemplate, renderToFile } from '../lib/templates.ts';
@@ -17,7 +28,8 @@ import { CommitMetaSchema } from '../lib/types.ts';
 import { fileHash, readLock, verifyConfigLayer, verifyFilesLayer, writeLock } from '../lib/lock.ts';
 import { readFrontmatter, writeFrontmatter } from '../lib/frontmatter.ts';
 import { GitHubApiError, branchProtectionPayload, currentRepo, getBranchProtection, getBranchRules, isAuthenticated, isGhAvailable, putBranchProtection } from '../lib/gh.ts';
-import { fail, parseScalar } from './_util.ts';
+import { collectDashboardData, openDashboardFile, writeDashboard } from '../lib/dashboard.ts';
+import { fail, jsonOut, parseScalar } from './_util.ts';
 import { pathExists } from '../lib/fs-util.ts';
 
 const installRoot = join(dirname(fileURLToPath(import.meta.url)), '..');
@@ -120,6 +132,11 @@ async function createExperiment(opts: {
   forkedFrom?: string | null;
   forkReason?: 'scope-drift' | 'parallel-exploration' | 'manual' | null;
   driftCommit?: string | null;
+  matrixId?: string;
+  variableId?: string;
+  canonicalVariable?: string;
+  variantValue?: string;
+  paperLabel?: string;
 }): Promise<string> {
   const shortname = slugify(opts.shortname);
   const expId = opts.id ?? await nextExpId();
@@ -136,6 +153,7 @@ async function createExperiment(opts: {
     removed: parseCsv(opts.controlRemoved),
     modified: parseCsv(opts.controlModified ?? shortname),
   };
+  const naming = buildNamingRef(opts);
   const kill = parseCsv(opts.kill ?? 'metric regresses beyond threshold');
   const success = parseCsv(opts.success ?? 'hypothesis is supported by the chosen metric');
   const expDir = `${PATHS.EXPERIMENTS}/${expId}-${shortname}`;
@@ -155,6 +173,7 @@ async function createExperiment(opts: {
       probes: [],
     },
     controlled_changes: controlledChanges,
+    naming,
     kill_criteria: kill,
     success_criteria: success,
   };
@@ -169,6 +188,7 @@ async function createExperiment(opts: {
     forked_from: opts.forkedFrom ?? null,
     fork_reason: opts.forkReason ?? null,
     drift_commit: opts.driftCommit ?? null,
+    ...(naming ? { naming } : {}),
   }, [
     `# ${expId}: ${shortname}`,
     '',
@@ -181,6 +201,16 @@ async function createExperiment(opts: {
     ...controlledChanges.added.map((v) => `- Added: ${v}`),
     ...controlledChanges.removed.map((v) => `- Removed: ${v}`),
     ...controlledChanges.modified.map((v) => `- Modified: ${v}`),
+    ...(naming ? [
+      '',
+      '## Naming',
+      '',
+      ...(naming.matrix_id ? [`- Matrix: ${naming.matrix_id}`] : []),
+      ...(naming.variable_id ? [`- Variable ID: ${naming.variable_id}`] : []),
+      ...(naming.canonical_variable ? [`- Canonical variable: ${naming.canonical_variable}`] : []),
+      ...(naming.variant_value ? [`- Variant value: ${naming.variant_value}`] : []),
+      ...(naming.paper_label ? [`- Paper label: ${naming.paper_label}`] : []),
+    ] : []),
     '',
     '## Success criteria',
     '',
@@ -193,6 +223,196 @@ async function createExperiment(opts: {
   ].join('\n'));
   await writeFile(`${expDir}/config.yaml`, yaml.dump(config, { lineWidth: 120, noRefs: true, sortKeys: false }));
   await writeFile(`${expDir}/results.md`, `# Results: ${expId}\n\n`);
+  if (opts.stage) {
+    await rawGit(['add', expDir, `.lablock/locks/${expId}.scope.lock`]);
+  }
+  return expId;
+}
+
+function parseNamingProfile(raw: string | undefined): NamingProfileValue {
+  return NamingProfileValueSchema.parse(raw ?? 'paper-aligned');
+}
+
+function namingProfileContext(profile: NamingProfileValue): Record<string, unknown> {
+  if (profile === 'minimal') {
+    return {
+      naming_profile: 'minimal',
+      experiment_shortname_pattern: 'exp-NNN-<shortname>',
+      matrix_slug_pattern: '<topic>-matrix',
+      require_variable_registry: false,
+      require_matrix_registry: false,
+      paper_label_required: false,
+    };
+  }
+  if (profile === 'matrix-first') {
+    return {
+      naming_profile: 'matrix-first',
+      experiment_shortname_pattern: 'exp-NNN-m<mat>-c<cell>-<variant>',
+      matrix_slug_pattern: '<research-question>-<primary-axis>',
+      require_variable_registry: true,
+      require_matrix_registry: true,
+      paper_label_required: true,
+    };
+  }
+  return {
+    naming_profile: 'paper-aligned',
+    experiment_shortname_pattern: 'exp-NNN-<axis-or-method>-<variant>',
+    matrix_slug_pattern: '<topic>-<primary-axis>-ablation',
+    require_variable_registry: true,
+    require_matrix_registry: true,
+    paper_label_required: false,
+  };
+}
+
+function buildNamingRef(opts: {
+  matrixId?: string;
+  variableId?: string;
+  canonicalVariable?: string;
+  variantValue?: string;
+  paperLabel?: string;
+}): ExperimentNamingRef | undefined {
+  const raw = {
+    ...(opts.matrixId ? { matrix_id: MatrixIdSchema.parse(opts.matrixId) } : {}),
+    ...(opts.variableId ? { variable_id: VariableIdSchema.parse(opts.variableId) } : {}),
+    ...(opts.canonicalVariable ? { canonical_variable: CanonicalVariableNameSchema.parse(opts.canonicalVariable) } : {}),
+    ...(opts.variantValue ? { variant_value: opts.variantValue.trim() } : {}),
+    ...(opts.paperLabel ? { paper_label: opts.paperLabel.trim() } : {}),
+  };
+  return Object.keys(raw).length ? ExperimentNamingRefSchema.parse(raw) : undefined;
+}
+
+function lockStatusForExperimentStatus(status: string): ScopeLock['status'] {
+  if (status === 'planned' || status === 'running') return 'active';
+  if (status === 'done') return 'finalized';
+  return 'superseded';
+}
+
+async function createMigratedExperimentNode(opts: {
+  shortname: string;
+  source: string;
+  hypothesis: string;
+  status?: string;
+  sourceType?: string;
+  parent?: string;
+  confidence?: string;
+  success?: string;
+  kill?: string;
+  stage?: boolean;
+}): Promise<string> {
+  const status = opts.status ?? 'planned';
+  if (!['planned', 'running', 'done', 'killed', 'superseded'].includes(status)) {
+    throw new Error('--status must be planned, running, done, killed, or superseded');
+  }
+  const sourceType = opts.sourceType ?? 'unknown';
+  if (!['plan', 'experiment', 'run', 'result', 'unknown'].includes(sourceType)) {
+    throw new Error('--source-type must be plan, experiment, run, result, or unknown');
+  }
+  const confidence = opts.confidence ?? 'medium';
+  if (!['low', 'medium', 'high'].includes(confidence)) throw new Error('--confidence must be low, medium, or high');
+  if (!opts.source) throw new Error('--source is required');
+  if (!await pathExists(opts.source)) throw new Error(`Legacy source not found: ${opts.source}`);
+
+  const shortname = slugify(opts.shortname);
+  const expId = await nextExpId();
+  const parent = opts.parent && opts.parent !== 'null' && opts.parent !== 'none' ? opts.parent : null;
+  if (parent) {
+    const parentStatus = await readExperimentStatus(parent);
+    if (!parentStatus) throw new Error(`Parent experiment not found: ${parent}`);
+  }
+
+  const today = new Date().toISOString().slice(0, 10);
+  const importedAt = new Date().toISOString();
+  const sourcePath = opts.source.replaceAll('\\', '/');
+  const expDir = `${PATHS.EXPERIMENTS}/${expId}-${shortname}`;
+  if (await pathExists(expDir)) throw new Error(`${expDir} already exists`);
+  await mkdir(expDir, { recursive: true });
+
+  const migrationConfig = {
+    migration: {
+      imported: true,
+      source_path: sourcePath,
+      source_type: sourceType,
+      confidence,
+      imported_at: importedAt,
+      legacy_status: status,
+    },
+  };
+  const success = parseCsv(opts.success ?? 'legacy success criteria were not recorded during import');
+  const kill = parseCsv(opts.kill ?? 'legacy kill criteria were not recorded during import');
+  const controlledChanges = {
+    modified: [`imported legacy ${sourceType} from ${sourcePath}`],
+  };
+
+  const lock: ScopeLock = {
+    exp_id: expId,
+    shortname,
+    hypothesis: opts.hypothesis,
+    parent,
+    created: today,
+    status: lockStatusForExperimentStatus(status),
+    locked_invariants: {
+      config: migrationConfig,
+      files: [],
+      probes: [],
+    },
+    controlled_changes: controlledChanges,
+    kill_criteria: kill,
+    success_criteria: success,
+  };
+  await writeLock(lock);
+  await writeFrontmatter(`${expDir}/hypothesis.md`, {
+    id: expId,
+    parent,
+    status,
+    created: today,
+    hypothesis: opts.hypothesis,
+    related_claims: [],
+    tags: ['imported', 'legacy', sourceType, confidence === 'low' ? 'needs-confirmation' : 'migration-reviewed'].filter(Boolean),
+  }, [
+    `# ${expId}: ${shortname}`,
+    '',
+    '## Hypothesis',
+    '',
+    opts.hypothesis,
+    '',
+    '## Migration source',
+    '',
+    `- Source path: \`${sourcePath}\``,
+    `- Source type: ${sourceType}`,
+    `- Import confidence: ${confidence}`,
+    `- Imported at: ${importedAt}`,
+    '',
+    '## What changed',
+    '',
+    `- Modified: imported legacy ${sourceType} from \`${sourcePath}\``,
+    '',
+    '## Success criteria',
+    '',
+    ...success.map((v) => `- ${v}`),
+    '',
+    '## Kill criteria',
+    '',
+    ...kill.map((v) => `- ${v}`),
+    '',
+    '## Notes',
+    '',
+    'This LabLock node mirrors existing legacy material. The original files were not moved or rewritten. Treat low-confidence imports as dashboard placeholders until a human confirms the hypothesis, status, and criteria.',
+    '',
+  ].join('\n'));
+  await writeFile(`${expDir}/config.yaml`, yaml.dump(migrationConfig, { lineWidth: 120, noRefs: true, sortKeys: false }));
+  await writeFile(`${expDir}/results.md`, [
+    `# Results: ${expId}`,
+    '',
+    '## Progress',
+    '',
+    `- Imported from legacy ${sourceType}: \`${sourcePath}\``,
+    `- Legacy status at import: ${status}`,
+    '',
+    '## Legacy source',
+    '',
+    `Review the original material at \`${sourcePath}\`. Copy only curated summaries here; do not move or rewrite the legacy source as part of import.`,
+    '',
+  ].join('\n'));
   if (opts.stage) {
     await rawGit(['add', expDir, `.lablock/locks/${expId}.scope.lock`]);
   }
@@ -334,8 +554,8 @@ async function expFinalize(opts: { exp: string; status: string; tag?: boolean; c
   if (!valid.includes(opts.status)) throw new Error(`--status must be one of: ${valid.join(', ')}`);
   const branch = await rawGit(['branch', '--show-current']).then((s) => s.trim()).catch(() => '');
   const expectedPrefix = `exp/${opts.exp}-`;
-  if (!branch.startsWith(expectedPrefix)) {
-    process.stderr.write(`LabLock warning: finalizing ${opts.exp} from branch ${branch || 'DETACHED'}; expected ${expectedPrefix}*. If --tag is used, the tag will point at current HEAD.\n`);
+  if (branch.startsWith('exp/') && !branch.startsWith(expectedPrefix)) {
+    process.stderr.write(`LabLock warning: finalizing ${opts.exp} while on different experiment branch ${branch}; expected ${expectedPrefix}*. If --tag is used, the tag will point at current HEAD.\n`);
   }
   const doc = await readFrontmatter(`${dir}/hypothesis.md`);
   await writeFrontmatter(`${dir}/hypothesis.md`, {
@@ -364,6 +584,287 @@ async function postmortem(opts: { exp: string; status?: string; overwrite?: bool
     status: opts.status ?? 'killed',
   }, { overwrite: Boolean(opts.overwrite) });
   console.log(dest);
+}
+
+async function currentExperimentId(): Promise<string | null> {
+  const raw = await readFile(PATHS.STATE_CURRENT_EXP, 'utf8').catch(() => null);
+  const expId = raw?.trim();
+  return expId ? ExpIdSchema.parse(expId) : null;
+}
+
+async function researchDebug(opts: { exp?: string; topic: string; symptom?: string; overwrite?: boolean; stage?: boolean }): Promise<void> {
+  const topic = slugify(opts.topic);
+  const expId = opts.exp ? ExpIdSchema.parse(opts.exp) : await currentExperimentId();
+  const date = new Date().toISOString().slice(0, 10);
+  const dest = `${PATHS.REVIEWS}/${date}${expId ? `-${expId}` : ''}-${topic}-research-debug.md`;
+  let expDir: string | null = null;
+  let shortname = 'none';
+  let hypothesis = 'No experiment selected.';
+  let experimentStatus = 'unknown';
+  let lock: ScopeLock | null = null;
+
+  if (expId) {
+    expDir = await findExperimentDir(expId);
+    if (!expDir) throw new Error(`Experiment not found: ${expId}`);
+    shortname = await experimentShortname(expId);
+    const doc = await readFrontmatter(`${expDir}/hypothesis.md`).catch(() => null);
+    hypothesis = String(doc?.frontmatter?.hypothesis ?? 'Unknown hypothesis');
+    experimentStatus = String(doc?.frontmatter?.status ?? 'unknown');
+    lock = await readLock(expId).catch(() => null);
+  }
+
+  await renderToFile('research-debug.md.tmpl', dest, {
+    created: new Date().toISOString(),
+    date,
+    topic,
+    title: topic.replaceAll('-', ' '),
+    symptom: opts.symptom ?? 'Describe the exact failure, unexpected metric, traceback, or anomaly.',
+    exp_id: expId,
+    shortname,
+    experiment_label: expId ? `${expId}-${shortname}` : 'none',
+    experiment_dir: expDir ?? 'none',
+    hypothesis,
+    experiment_status: experimentStatus,
+    lock_path: expId ? `.lablock/locks/${expId}.scope.lock` : 'none',
+    results_path: expDir ? `${expDir}/results.md` : 'none',
+    controlled_added: lock?.controlled_changes.added ?? [],
+    controlled_removed: lock?.controlled_changes.removed ?? [],
+    controlled_modified: lock?.controlled_changes.modified ?? [],
+    success_criteria: lock?.success_criteria ?? [],
+    kill_criteria: lock?.kill_criteria ?? [],
+  }, { overwrite: Boolean(opts.overwrite) });
+  if (opts.stage) await rawGit(['add', dest]);
+  console.log(dest);
+}
+
+function docSlugify(raw: string | undefined, fallback: string): string {
+  const cleaned = (raw ?? fallback)
+    .trim()
+    .toLowerCase()
+    .replace(/[\/\\:\0]/g, '-')
+    .replace(/\s+/g, '-')
+    .replace(/^-+|-+$/g, '')
+    .replace(/--+/g, '-');
+  return cleaned || fallback;
+}
+
+function titleFromSlug(slug: string): string {
+  return slug.replace(/-/g, ' ');
+}
+
+function today(): string {
+  return new Date().toISOString().slice(0, 10);
+}
+
+async function defaultDraftDestination(kind: string, context: {
+  date: string;
+  topic: string;
+  exp_id: string | null;
+  exp_dir: string | null;
+}): Promise<string> {
+  if (kind === 'literature-review') return `research/literature-review.md`;
+  if (kind === 'methodology') return `research/methodology.md`;
+  if (kind === 'research-story') return `research/story.md`;
+  if (['objective', 'roadmap', 'progress'].includes(kind) && context.exp_dir) {
+    return `${context.exp_dir}/${kind}.md`;
+  }
+  if (kind === 'monitor' || kind === 'deguard') {
+    return `${PATHS.REVIEWS}/${context.date}${context.exp_id ? `-${context.exp_id}` : ''}-${context.topic}-${kind}.md`;
+  }
+  if (kind === 'expert-consultation') {
+    return `${PATHS.HANDOFFS_OUTGOING}/${context.date}-${context.topic}-expert-consultation.md`;
+  }
+  if (kind === 'reply-summary') {
+    return `${PATHS.HANDOFFS}/summaries/${context.date}-${context.topic}-reply-summary.md`;
+  }
+  return `plans/${context.date}-${context.topic}-${kind}.md`;
+}
+
+async function draftVNextDoc(opts: {
+  kind: string;
+  topic?: string;
+  exp?: string;
+  title?: string;
+  totalGoal?: string;
+  stageGoal?: string;
+  out?: string;
+  overwrite?: boolean;
+  stage?: boolean;
+  json?: boolean;
+  specificAsk?: string;
+  problem?: string;
+  summary?: string;
+  outgoing?: string;
+  incoming?: string;
+}): Promise<void> {
+  const kind = opts.kind;
+  const templates: Record<string, string> = {
+    'literature-review': 'literature-review.md.tmpl',
+    methodology: 'methodology.md.tmpl',
+    'research-story': 'research-story.md.tmpl',
+    objective: 'objective.md.tmpl',
+    roadmap: 'roadmap.md.tmpl',
+    progress: 'progress.md.tmpl',
+    monitor: 'monitor.md.tmpl',
+    deguard: 'deguard.md.tmpl',
+    'expert-consultation': 'handoff-expert-consultation.md.tmpl',
+    'reply-summary': 'handoff-reply-summary.md.tmpl',
+  };
+  const template = templates[kind];
+  if (!template) throw new Error(`--kind must be one of: ${Object.keys(templates).join(', ')}`);
+
+  const expId = opts.exp ? ExpIdSchema.parse(opts.exp) : await currentExperimentId();
+  const expDir = expId ? await findExperimentDir(expId) : null;
+  if (expId && !expDir && opts.exp) throw new Error(`Experiment not found: ${expId}`);
+  const date = today();
+  const topic = docSlugify(opts.topic ?? opts.title ?? expId ?? kind, kind);
+  const title = opts.title ?? titleFromSlug(topic);
+  const dest = opts.out ?? await defaultDraftDestination(kind, { date, topic, exp_id: expId, exp_dir: expDir });
+  const projectName = await readFrontmatter(PATHS.PROJECT_MD)
+    .then((doc) => String(doc.frontmatter?.project ?? doc.frontmatter?.name ?? title))
+    .catch(() => title);
+
+  await renderToFile(template, dest, {
+    date,
+    created: new Date().toISOString(),
+    title,
+    topic,
+    project_name: projectName,
+    exp_id: expId ?? 'TBD',
+    starting_idea: opts.totalGoal ?? 'Describe the starting idea, keyword, anomaly, or early hypothesis.',
+    common_problem: opts.totalGoal ?? 'Describe the common problem this methodology should address.',
+    story_sentence: opts.totalGoal ?? 'Write the one-sentence research narrative.',
+    total_goal: opts.totalGoal ?? 'Describe the total research goal.',
+    stage_goal: opts.stageGoal ?? 'Describe the current stage goal.',
+    specific_ask: opts.specificAsk ?? 'Give a diagnosis and recommend the next research-aligned action.',
+    problem_statement: opts.problem ?? 'Describe the problem, anomaly, or decision that needs expert judgment.',
+    summary: opts.summary ?? 'Summarize the incoming reply here.',
+    outgoing_path: opts.outgoing ?? 'handoffs/outgoing/<date-topic>.md',
+    incoming_path: opts.incoming ?? 'handoffs/incoming/<date-topic>.md',
+    evidence: ['Add the most relevant local result, log, paper, issue, or implementation evidence.'],
+    candidate_explanations: ['Add plausible explanations to evaluate.'],
+    constraints: ['Preserve the research objective and avoid unrelated defensive gates.'],
+    advice: ['Summarize advice from the incoming reply.'],
+    tasks: ['Extract concrete next actions from the incoming reply.'],
+    caveats: ['List caveats or uncertainty from the reply.'],
+    references: ['List references, papers, issues, or links mentioned in the reply.'],
+    next_action: 'Choose one research-aligned next action and record it in progress.md.',
+  }, { overwrite: Boolean(opts.overwrite) });
+  if (opts.stage) await rawGit(['add', dest]);
+  if (opts.json) jsonOut({ kind, path: dest, exp: expId ?? null });
+  else console.log(dest);
+}
+
+async function readIfPresent(path: string | null): Promise<string | null> {
+  if (!path) return null;
+  return await readFile(path, 'utf8').catch(() => null);
+}
+
+async function handoffVNext(opts: {
+  mode?: string;
+  type?: string;
+  topic?: string;
+  exp?: string;
+  title?: string;
+  task?: string;
+  totalGoal?: string;
+  stageGoal?: string;
+  specificAsk?: string;
+  problem?: string;
+  summary?: string;
+  outgoing?: string;
+  incoming?: string;
+  out?: string;
+  overwrite?: boolean;
+  stage?: boolean;
+  json?: boolean;
+}): Promise<void> {
+  const legacyMap: Record<string, string> = {
+    implementation: 'execution',
+    debug: 'expert-consultation',
+    method: 'expert-consultation',
+    results: 'expert-consultation',
+    design: 'expert-consultation',
+    writing: 'expert-consultation',
+  };
+  const mode = opts.mode ?? (opts.type ? legacyMap[opts.type] : undefined) ?? 'execution';
+  const templates: Record<string, string> = {
+    execution: 'handoff-execution.md.tmpl',
+    'expert-consultation': 'handoff-expert-consultation.md.tmpl',
+    reply: 'handoff-reply-summary.md.tmpl',
+    summary: 'handoff-summary.md.tmpl',
+  };
+  const template = templates[mode];
+  if (!template) throw new Error('--mode must be execution, expert-consultation, reply, or summary');
+
+  const expId = opts.exp ? ExpIdSchema.parse(opts.exp) : await currentExperimentId();
+  const expDir = expId ? await findExperimentDir(expId) : null;
+  if (expId && !expDir && opts.exp) throw new Error(`Experiment not found: ${expId}`);
+  const date = today();
+  const topic = docSlugify(opts.topic ?? opts.title ?? expId ?? mode, mode);
+  const title = opts.title ?? titleFromSlug(topic);
+  const dest = opts.out ?? (
+    mode === 'reply' || mode === 'summary'
+      ? `${PATHS.HANDOFFS}/summaries/${date}-${topic}-${mode}.md`
+      : `${PATHS.HANDOFFS_OUTGOING}/${date}-${topic}-${mode}.md`
+  );
+
+  const projectDoc = await readIfPresent(PATHS.PROJECT_MD);
+  const formalism = await readIfPresent(PATHS.FORMALISM_MD);
+  const objectivePath = expDir ? `${expDir}/objective.md` : null;
+  const planPath = expDir ? `${expDir}/plan.md` : null;
+  const roadmapPath = expDir ? `${expDir}/roadmap.md` : null;
+  const progressPath = expDir ? `${expDir}/progress.md` : null;
+  const hypothesisPath = expDir ? `${expDir}/hypothesis.md` : null;
+  const resultsPath = expDir ? `${expDir}/results.md` : null;
+  const sourcePaths = [objectivePath, planPath, roadmapPath, progressPath, hypothesisPath, resultsPath, expId ? `.lablock/locks/${expId}.scope.lock` : null].filter(Boolean);
+  const hypothesisDoc = hypothesisPath ? await readFrontmatter(hypothesisPath).catch(() => null) : null;
+  const lock = expId ? await readLock(expId).catch(() => null) : null;
+
+  await renderToFile(template, dest, {
+    date,
+    created: new Date().toISOString(),
+    title,
+    topic,
+    project_name: title,
+    project_summary: projectDoc ?? 'No PROJECT.md found.',
+    formalism: formalism ?? 'No formalism.md found.',
+    formalism_version: 'unknown',
+    domain: 'research',
+    exp_id: expId ?? 'TBD',
+    exp_dir: expDir ?? 'none',
+    exp_slug: expDir?.replace(/^experiments\//, '') ?? 'none',
+    hypothesis: String(hypothesisDoc?.frontmatter?.hypothesis ?? lock?.hypothesis ?? 'No hypothesis recorded.'),
+    parent: String(hypothesisDoc?.frontmatter?.parent ?? lock?.parent ?? 'none'),
+    total_goal: opts.totalGoal ?? 'Preserve the research objective described in objective.md, plan.md, or PROJECT.md.',
+    stage_goal: opts.stageGoal ?? 'Complete the current roadmap step without adding unrelated defensive mechanisms.',
+    task: opts.task ?? 'Describe the concrete task to execute.',
+    coding_task: opts.task ?? 'Describe the concrete coding or analysis task to execute.',
+    primary_intervention: lock?.controlled_changes.modified?.join(', ') ?? 'See plan/objective.',
+    success_criteria: lock?.success_criteria?.join('\n') ?? 'See objective.md or roadmap.md.',
+    source_paths: sourcePaths,
+    additional_sources: sourcePaths.map((p) => `- \`${p}\``).join('\n'),
+    objective_excerpt: await readIfPresent(objectivePath) ?? 'No objective.md found.',
+    roadmap_excerpt: await readIfPresent(roadmapPath) ?? 'No roadmap.md found.',
+    progress_excerpt: await readIfPresent(progressPath) ?? 'No progress.md found.',
+    specific_ask: opts.specificAsk ?? 'Give a diagnosis and recommend the next research-aligned action.',
+    problem_statement: opts.problem ?? 'Describe the problem, anomaly, or decision that needs expert judgment.',
+    summary: opts.summary ?? 'Summarize the incoming reply here.',
+    outgoing_path: opts.outgoing ?? 'handoffs/outgoing/<date-topic>.md',
+    incoming_path: opts.incoming ?? 'handoffs/incoming/<date-topic>.md',
+    incoming_excerpt: opts.incoming ? await readIfPresent(opts.incoming) ?? 'Incoming reply file not found.' : 'No incoming reply path provided.',
+    evidence: ['Add the most relevant local result, log, paper, issue, or implementation evidence.'],
+    candidate_explanations: ['Add plausible explanations to evaluate.'],
+    constraints: ['Preserve the research objective and avoid unrelated defensive gates.'],
+    advice: ['Summarize advice from the incoming reply.'],
+    tasks: ['Extract concrete next actions from the incoming reply.'],
+    caveats: ['List caveats or uncertainty from the reply.'],
+    references: ['List references, papers, issues, or links mentioned in the reply.'],
+    next_action: 'Choose one research-aligned next action and record it in progress.md.',
+  }, { overwrite: Boolean(opts.overwrite) });
+  if (opts.stage) await rawGit(['add', dest]);
+  if (opts.json) jsonOut({ mode, path: dest, exp: expId ?? null });
+  else console.log(dest);
 }
 
 async function cleanupPr(opts: { exp: string; base?: string; json?: boolean }): Promise<void> {
@@ -773,7 +1274,7 @@ async function installHooks(): Promise<void> {
   }
 }
 
-async function initProject(opts: { name: string; modules?: string; ciMode?: string; goal?: string; hypothesis?: string }): Promise<void> {
+async function initProject(opts: { name: string; modules?: string; ciMode?: string; goal?: string; hypothesis?: string; namingProfile?: string }): Promise<void> {
   const modules = { ...DEFAULT_PROJECT_CONFIG.modules };
   for (const key of Object.keys(modules)) modules[key] = false;
   for (const mod of (opts.modules ?? 'gpu,data,lit').split(',').map((s) => s.trim()).filter(Boolean)) modules[mod] = true;
@@ -807,12 +1308,14 @@ async function initProject(opts: { name: string; modules?: string; ciMode?: stri
   await writeProjectConfig(config);
   await writeFile(PATHS.LEARNINGS, '', { flag: 'a' });
 
+  const namingProfile = parseNamingProfile(opts.namingProfile);
   const context = {
     project_name: opts.name,
     goal: opts.goal ?? opts.name,
     hypothesis: opts.hypothesis ?? 'Initial hypothesis to be refined.',
     formalism_version: 'v1',
     modules,
+    ...namingProfileContext(namingProfile),
   };
   const renders: Array<[string, string]> = [
     ['PROJECT.md.tmpl', PATHS.PROJECT_MD],
@@ -821,6 +1324,9 @@ async function initProject(opts: { name: string; modules?: string; ciMode?: stri
     ['INDEX.md.tmpl', PATHS.INDEX_MD],
     ['matrix.md.tmpl', PATHS.EXPERIMENTS_MATRIX],
     ['MAP.md.tmpl', PATHS.MAP_MD],
+    ['naming.yaml.tmpl', PATHS.NAMING],
+    ['variables.yaml.tmpl', PATHS.VARIABLES],
+    ['matrices.yaml.tmpl', PATHS.MATRICES],
     ['gitignore.tmpl', '.gitignore'],
     ['gitattributes.tmpl', '.gitattributes'],
     ['claude-settings.json.tmpl', '.claude/settings.json'],
@@ -1051,11 +1557,39 @@ async function runExternal(args: string[], cwd: string): Promise<{ stdout: strin
   return { stdout, stderr };
 }
 
+function validateUpdateRef(ref: string): string {
+  const trimmed = ref.trim();
+  if (!trimmed) throw new Error('--ref must not be empty');
+  if (trimmed.startsWith('-')) throw new Error('--ref must not start with "-"');
+  if (/[\s\0]/.test(trimmed)) throw new Error('--ref must not contain whitespace or null bytes');
+  if (trimmed.includes('..')) throw new Error('--ref must not contain ".."');
+  return trimmed;
+}
+
+async function switchSourceRef(source: string, ref: string): Promise<void> {
+  const target = validateUpdateRef(ref);
+  await rawGit(['-C', source, 'fetch', 'origin', target]);
+  try {
+    await rawGit(['-C', source, 'switch', target]);
+    return;
+  } catch {
+    // New preview branches usually exist only on origin until first use.
+  }
+  try {
+    await rawGit(['-C', source, 'switch', '-c', target, `origin/${target}`]);
+    return;
+  } catch {
+    // Tags or commit-ish refs can still be installed in detached HEAD mode.
+  }
+  await rawGit(['-C', source, 'checkout', 'FETCH_HEAD']);
+}
+
 async function updateLabLock(opts: {
   source?: string;
   host?: string;
   scope?: string;
   mode?: string;
+  ref?: string;
   pull?: boolean;
   install?: boolean;
   dryRun?: boolean;
@@ -1065,12 +1599,15 @@ async function updateLabLock(opts: {
   const shouldPull = opts.pull !== false;
   const shouldInstall = opts.install !== false;
   const dryRun = Boolean(opts.dryRun);
+  const ref = opts.ref ? validateUpdateRef(opts.ref) : null;
 
   const steps = {
+    git_ref: ref ? (dryRun ? 'would-run' : 'ran') : 'skipped',
     git_pull: shouldPull ? (dryRun ? 'would-run' : 'ran') : 'skipped',
     bun_install: shouldInstall ? (dryRun ? 'would-run' : 'ran') : 'skipped',
   };
 
+  if (ref && !dryRun) await switchSourceRef(source, ref);
   if (shouldPull && !dryRun) await rawGit(['-C', source, 'pull', '--ff-only']);
   if (shouldInstall && !dryRun) await runExternal(['bun', 'install'], source);
 
@@ -1084,6 +1621,7 @@ async function updateLabLock(opts: {
 
   const payload = {
     source,
+    ref,
     steps,
     skill_update: skillUpdate,
   };
@@ -1094,6 +1632,8 @@ async function updateLabLock(opts: {
   }
 
   console.log(`LabLock source: ${source}`);
+  if (ref) console.log(`git ref: ${ref}`);
+  console.log(`git fetch/switch ref: ${steps.git_ref}`);
   console.log(`git pull --ff-only: ${steps.git_pull}`);
   console.log(`bun install: ${steps.bun_install}`);
   for (const item of skillUpdate.results) console.log(`${item.label}:${item.skill}: ${item.result} -> ${item.path}`);
@@ -1141,17 +1681,43 @@ program.command('next-exp-id').action(async () => console.log(await nextExpId())
 
 program.command('doctor').action(async () => doctor().catch(fail));
 
+program.command('dashboard')
+  .description('Generate a static experiment planning and progress dashboard')
+  .option('--out <dir>', 'output directory', PATHS.DASHBOARD_DIR)
+  .option('--json', 'print dashboard JSON instead of writing files')
+  .option('--open', 'open the generated HTML dashboard in the default browser')
+  .option('--no-html', 'write data.json without index.html')
+  .action(async (opts) => {
+    try {
+      if (opts.json) {
+        jsonOut(await collectDashboardData());
+        return;
+      }
+      const result = await writeDashboard({ outDir: opts.out, html: opts.html });
+      console.log(`Dashboard data written: ${result.dataPath}`);
+      if (result.htmlPath) console.log(`Dashboard HTML written: ${result.htmlPath}`);
+      if (opts.open) {
+        if (!result.htmlPath) throw new Error('--open requires HTML output; remove --no-html.');
+        console.log(`Dashboard opened: ${await openDashboardFile(result.htmlPath)}`);
+      }
+    } catch (error) {
+      fail(error);
+    }
+  });
+
 program.command('init-project')
   .option('--name <name>', 'project name', process.cwd().split('/').at(-1))
   .option('--modules <csv>', 'enabled modules', 'gpu,data,lit')
   .option('--ci-mode <mode>', 'warn-only | enforce', 'warn-only')
   .option('--goal <text>', 'one-line goal')
   .option('--hypothesis <text>', 'initial hypothesis')
+  .option('--naming-profile <profile>', 'minimal | paper-aligned | matrix-first', 'paper-aligned')
   .action(async (opts) => initProject(opts).catch(fail));
 
 program.command('update')
   .description('Upgrade the installed LabLock source and refresh installed skills')
   .option('--source <path>', 'LabLock source repo; defaults to LABLOCK_HOME or detected install')
+  .option('--ref <git-ref>', 'preview branch/tag/commit to fetch and install before refreshing skills')
   .option('--host <host>', 'claude | codex | both', 'both')
   .option('--scope <scope>', 'global | project | both | auto', 'global')
   .option('--mode <mode>', 'symlink | copy', 'symlink')
@@ -1181,6 +1747,11 @@ program.command('exp-init')
   .option('--control-removed <csv>', 'allowed removed changes')
   .option('--control-modified <csv>', 'allowed modified changes')
   .option('--file-invariant <items>', 'comma-separated path:reason entries')
+  .option('--matrix-id <id>', 'matrix registry id, e.g. mat-001')
+  .option('--variable-id <id>', 'canonical variable registry id, e.g. var-001')
+  .option('--canonical-variable <name>', 'canonical variable name, snake_case')
+  .option('--variant-value <value>', 'value or variant being tested')
+  .option('--paper-label <label>', 'human-readable label for paper tables')
   .option('--kill <csv>', 'kill criteria')
   .option('--success <csv>', 'success criteria')
   .option('--stage', 'git add created files')
@@ -1188,6 +1759,27 @@ program.command('exp-init')
     try {
       const expId = await createExperiment({ shortname, ...opts });
       console.log(`Experiment created: ${expId}`);
+    } catch (error) {
+      fail(error);
+    }
+  });
+
+program.command('migrate-node')
+  .description('Create a LabLock experiment node that mirrors legacy plan or experiment material')
+  .argument('<shortname>')
+  .requiredOption('--source <path>', 'legacy source file or directory to reference')
+  .requiredOption('--hypothesis <text>', 'hypothesis or summary for the imported node')
+  .option('--status <status>', 'planned | running | done | killed | superseded', 'planned')
+  .option('--source-type <type>', 'plan | experiment | run | result | unknown', 'unknown')
+  .option('--parent <id>', 'parent experiment id; omit or use none for root')
+  .option('--confidence <level>', 'low | medium | high', 'medium')
+  .option('--success <csv>', 'success criteria or import note')
+  .option('--kill <csv>', 'kill criteria or import note')
+  .option('--stage', 'git add created node files')
+  .action(async (shortname, opts) => {
+    try {
+      const expId = await createMigratedExperimentNode({ shortname, ...opts });
+      console.log(`Migrated experiment node created: ${expId}`);
     } catch (error) {
       fail(error);
     }
@@ -1244,6 +1836,55 @@ program.command('postmortem')
   .option('--status <status>', 'final status', 'killed')
   .option('--overwrite', 'overwrite existing postmortem')
   .action(async (opts) => postmortem(opts).catch(fail));
+
+program.command('research-debug')
+  .description('Create a deep research diagnostic report skeleton for an experiment issue')
+  .requiredOption('--topic <name>', 'short diagnostic topic')
+  .option('--exp <id>', 'experiment id; defaults to .lablock/state/current-exp when present')
+  .option('--symptom <text>', 'failure symptom, unexpected metric, traceback summary, or anomaly')
+  .option('--overwrite', 'overwrite existing report')
+  .option('--stage', 'git add generated report')
+  .action(async (opts) => researchDebug(opts).catch(fail));
+
+program.command('draft')
+  .description('Create a vNext research, objective, roadmap, progress, monitor, deguard, or handoff draft')
+  .argument('<kind>', 'literature-review | methodology | research-story | objective | roadmap | progress | monitor | deguard | expert-consultation | reply-summary')
+  .option('--topic <name>', 'short topic for filename')
+  .option('--exp <id>', 'experiment id; defaults to .lablock/state/current-exp when present')
+  .option('--title <text>', 'human-readable title')
+  .option('--total-goal <text>', 'total research goal')
+  .option('--stage-goal <text>', 'current stage goal')
+  .option('--specific-ask <text>', 'expert consultation ask')
+  .option('--problem <text>', 'problem statement for expert consultation')
+  .option('--summary <text>', 'initial summary for reply-summary drafts')
+  .option('--outgoing <path>', 'source outgoing handoff path for reply-summary')
+  .option('--incoming <path>', 'incoming reply path for reply-summary')
+  .option('--out <path>', 'override destination path')
+  .option('--overwrite', 'overwrite existing draft')
+  .option('--stage', 'git add generated draft')
+  .option('--json', 'json output')
+  .action(async (kind, opts) => draftVNextDoc({ kind, ...opts }).catch(fail));
+
+program.command('handoff')
+  .description('Create a vNext execution, expert consultation, reply, or summary handoff')
+  .option('--mode <mode>', 'execution | expert-consultation | reply | summary')
+  .option('--type <legacy-type>', 'legacy alias: implementation | debug | method | results | design | writing')
+  .option('--topic <name>', 'short topic for filename')
+  .option('--exp <id>', 'experiment id; defaults to .lablock/state/current-exp when present')
+  .option('--title <text>', 'human-readable title')
+  .option('--task <text>', 'execution task for an agent')
+  .option('--total-goal <text>', 'total research goal')
+  .option('--stage-goal <text>', 'current stage goal')
+  .option('--specific-ask <text>', 'expert consultation ask')
+  .option('--problem <text>', 'problem statement for expert consultation')
+  .option('--summary <text>', 'initial summary for reply or summary modes')
+  .option('--outgoing <path>', 'source outgoing handoff path for reply mode')
+  .option('--incoming <path>', 'incoming reply path for reply mode')
+  .option('--out <path>', 'override destination path')
+  .option('--overwrite', 'overwrite existing handoff')
+  .option('--stage', 'git add generated handoff')
+  .option('--json', 'json output')
+  .action(async (opts) => handoffVNext(opts).catch(fail));
 
 program.command('cleanup-pr')
   .requiredOption('--exp <id>', 'experiment id')

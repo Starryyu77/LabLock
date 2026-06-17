@@ -8,7 +8,7 @@ The bundled GitHub Actions workflow runs:
 - drift accountability audit
 - probes on `main`
 
-`ci.mode: warn-only` keeps failures non-blocking. `ci.mode: enforce` blocks merges.
+`ci.mode: warn-only` keeps research-alignment failures non-blocking. `ci.mode: enforce` is still available when a project explicitly wants merge-time enforcement.
 
 ## GitHub Branch Protection
 

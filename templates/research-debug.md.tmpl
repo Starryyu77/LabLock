@@ -1,0 +1,139 @@
+---
+type: research-debug
+created: {{created}}
+status: investigating
+topic: {{topic}}
+{{#if exp_id}}
+exp_id: {{exp_id}}
+{{/if}}
+---
+
+# Research Debug: {{title}}
+
+## Symptom
+
+{{symptom}}
+
+## Experiment Context
+
+- Experiment: {{experiment_label}}
+- Status: {{experiment_status}}
+- Hypothesis: {{hypothesis}}
+- Experiment folder: `{{experiment_dir}}`
+- Scope lock: `{{lock_path}}`
+- Results file: `{{results_path}}`
+
+## Controlled Change Frame
+
+### Added
+{{#if controlled_added.length}}
+{{#each controlled_added}}
+- {{this}}
+{{/each}}
+{{else}}
+- None recorded.
+{{/if}}
+
+### Removed
+{{#if controlled_removed.length}}
+{{#each controlled_removed}}
+- {{this}}
+{{/each}}
+{{else}}
+- None recorded.
+{{/if}}
+
+### Modified
+{{#if controlled_modified.length}}
+{{#each controlled_modified}}
+- {{this}}
+{{/each}}
+{{else}}
+- None recorded.
+{{/if}}
+
+## Success And Kill Criteria
+
+### Success
+{{#if success_criteria.length}}
+{{#each success_criteria}}
+- {{this}}
+{{/each}}
+{{else}}
+- None recorded.
+{{/if}}
+
+### Kill
+{{#if kill_criteria.length}}
+{{#each kill_criteria}}
+- {{this}}
+{{/each}}
+{{else}}
+- None recorded.
+{{/if}}
+
+## Local Evidence To Collect
+
+- Reproducer command:
+- Run/log paths:
+- Relevant commits or diffs:
+- Relevant config keys:
+- Relevant source files:
+- Data sample or batch inspection:
+- Environment/library versions:
+
+## External Research Plan
+
+Search in this order and record links plus takeaways:
+
+1. Official documentation, release notes, and issue trackers for the relevant library/tool.
+2. Papers, technical reports, benchmark repos, or reproduction notes about the same method/task.
+3. GitHub issues, Discussions, Discourse, Stack Overflow, model/dataset forums, and other open-source community threads with similar symptoms.
+4. Lower-confidence posts only if they include reproducible commands, logs, or maintainer comments.
+
+Suggested query forms:
+
+- `<library or method> <exact error or metric symptom>`
+- `<model/task/dataset> <failure mode>`
+- `<relevant function/class/config key> bug`
+- `<paper or repo name> reproduction issue`
+
+## External Evidence
+
+| Source | Type | Similarity | Takeaway | Confidence |
+|---|---|---|---|---|
+|  | docs / paper / issue / forum | exact / partial / weak |  | high / medium / low |
+
+## Local Code Analysis
+
+Trace the failing path from entry point to symptom. Prefer concrete observations over general warnings.
+
+- Entry point:
+- Data/config flow:
+- Core function or module:
+- Suspicious mismatch:
+- Evidence supporting local bug:
+- Evidence against local bug:
+- Interaction with external evidence:
+
+## Diagnostic Conclusion
+
+- Classification: confirmed local bug / likely local bug / known upstream issue / expected phenomenon / environment issue / inconclusive
+- Confidence: high / medium / low
+- Why this explains the symptom:
+- What evidence would falsify this diagnosis:
+
+## Next Action
+
+Choose one:
+
+- Minimal target-aligned fix:
+- Minimal reproducer or probe:
+- `/lab-guard` classification because the fix changes experiment meaning:
+- `/lab-handoff --type=debug` for external AI review:
+- `/lab-postmortem` if the experiment should be killed or paused:
+
+## Research Notes
+
+- Do not turn the diagnosis into a new gate unless it directly serves the research objective.
+- Keep broad defensive checks out of the fix path unless the evidence shows they are necessary.

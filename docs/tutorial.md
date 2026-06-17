@@ -3,7 +3,7 @@
 这份教程面向第一次使用 LabLock 的用户。目标是走完一个最小闭环：
 
 ```text
-安装 LabLock -> 初始化/迁移科研仓库 -> 创建第一个 scope.lock -> 开始实验分支 -> 处理 drift -> finalize/audit
+安装 LabLock -> 初始化/迁移科研仓库 -> 创建第一个 scope.lock -> 文件夹隔离运行 -> 处理 drift -> finalize/audit
 ```
 
 如果你只想快速安装，先看第 1 节。如果你已经有旧科研仓库，直接看第 4 节。
@@ -101,7 +101,7 @@ git status --short --branch
 如果这是新项目，可以对 AI 说：
 
 ```text
-请使用 /lab-init 初始化这个科研仓库。项目名是 <项目名>，方向是 <研究方向>，先用 warn-only CI，不要启用 enforce。
+请使用 /lab-init 初始化这个科研仓库。项目名是 <项目名>，方向是 <研究方向>，先用 warn-only CI，不要启用 enforce。命名策略选择 B: paper-aligned registry，除非我另说。
 ```
 
 也可以直接跑 CLI：
@@ -111,6 +111,7 @@ lablock init-project \
   --name="My Research Project" \
   --modules=gpu,data,lit \
   --ci-mode=warn-only \
+  --naming-profile=paper-aligned \
   --goal="Study whether contrastive loss improves representation quality" \
   --hypothesis="Adding contrastive loss improves downstream classification accuracy."
 ```
@@ -119,6 +120,9 @@ lablock init-project \
 
 ```text
 .lablock/
+.lablock/naming.yaml
+.lablock/variables.yaml
+.lablock/matrices.yaml
 PROJECT.md
 formalism.md
 claims.md
@@ -161,13 +165,30 @@ eval.py
 默认 ci.mode=warn-only。迁移报告写到 reviews/migration-YYYY-MM-DD.md 或 LABLOCK_MIGRATION_PLAN.md。
 ```
 
-`/lab-migrate` 的合理结果不是“所有旧实验都变成 LabLock 实验”。第一阶段只要求：
+`/lab-migrate` 的合理结果不是“把旧目录搬家到 LabLock 结构里”。第一阶段要求：
 
 ```text
-一个当前活跃实验有 scope.lock，
-未来 commit 能被 hooks 守住，
-旧实验保留为 legacy material。
+旧文件原地保留，
+迁移报告列出哪些旧 plan / run / result 应该进入 LabLock 看板，
+经用户确认后，选中的旧材料被导入为 LabLock mirror nodes，
+未来 commit 能被 hooks 守住。
 ```
+
+mirror node 是一个新的 `experiments/exp-NNN-*/` 加 `.lablock/locks/exp-NNN.scope.lock`。它引用旧 source path，但不移动或复制旧实验目录。这样 dashboard、audit、synthesize、paper 相关流程才能读到这些旧实验。
+
+单个导入命令示例：
+
+```bash
+lablock migrate-node legacy-baseline \
+  --source runs/2026-05-01-baseline \
+  --source-type run \
+  --status done \
+  --hypothesis "Legacy baseline run reproduced reference accuracy." \
+  --confidence medium \
+  --stage
+```
+
+低置信度导入是允许的，但必须保守描述，并在后续 review 中确认。
 
 ## 5. 创建第一个受控实验
 
@@ -201,7 +222,7 @@ lablock exp-init contrastive-baseline \
 git commit -m "create first LabLock experiment"
 ```
 
-然后创建实验分支：
+默认继续在实验文件夹中运行；如果明确需要 Git 历史隔离、远端 CI 或多人协作，再创建实验分支：
 
 ```bash
 lablock exp-start --exp=exp-001
@@ -209,7 +230,7 @@ lablock exp-start --exp=exp-001
 
 ## 6. 日常开发：正常提交
 
-实验分支上正常改代码、跑训练、记录结果。提交时 hook 会自动：
+在对应实验文件夹中正常改代码、跑训练、记录结果。提交时 hook 会自动：
 
 - 校验 frontmatter
 - 检查大文件/LFS
@@ -267,6 +288,12 @@ lablock exp-finalize --exp=exp-001 --status=done --tag
 
 ```text
 请使用 /lab-postmortem，为 exp-001 写 postmortem。必须写清楚 what we did、what happened、why、what learned、conditions to revive。
+```
+
+如果失败原因不清楚，先做深度诊断：
+
+```text
+请使用 /lab-research-debug，对 exp-001 的 <症状> 做深度 research：查相关论文/文档/issue/forum/community，并结合本地代码给出诊断结论。
 ```
 
 最后跑一次 audit：

@@ -162,6 +162,13 @@ experiments/<exp>/roadmap.md
 experiments/<exp>/objective.md
 ```
 
+可用轻量草稿命令先落盘模板：
+
+```bash
+lablock draft objective --exp <exp-id> --topic <topic>
+lablock draft roadmap --exp <exp-id> --topic <topic>
+```
+
 ## 下一步
 
 - Roadmap 不够细：`/lab-roadmap`

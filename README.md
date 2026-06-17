@@ -214,6 +214,8 @@ LabLock skills 分两类：
 | `/lab-deguard` | Agent 加入过多非目标相关 gate、validator、fallback、retry 或抽象层 | 识别防御性膨胀，建议 keep/simplify/remove/defer/clarify | `reviews/YYYY-MM-DD-exp-deguard.md` |
 | `/lab-handoff` | 要把任务交给 Agent，或把问题交给外部专家，也可回收 incoming 回复 | 支持 execution、expert-consultation、reply、summary；旧 `--type=implementation` 兼容 | `handoffs/outgoing/`、`incoming/`、`summaries/` |
 
+这些 vNext 产物可以用轻量 CLI 先生成草稿，例如 `lablock draft objective --exp exp-001 --topic alignment`、`lablock draft roadmap --exp exp-001`、`lablock draft expert-consultation --topic training-anomaly`。该命令只写 Markdown 草稿，不执行实验、不应用外部建议。
+
 ### 形式化、claim 与论文
 
 | Skill | 什么时候用 | 它做什么 | 主要输出 |

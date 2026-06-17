@@ -57,6 +57,12 @@ experiments/<exp>/roadmap.md
 plans/<date>-<topic>-roadmap.md
 ```
 
+可用轻量草稿命令：
+
+```bash
+lablock draft roadmap --exp <exp-id> --topic <topic>
+```
+
 ## Roadmap 结构
 
 每一步都必须包含：

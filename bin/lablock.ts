@@ -637,6 +637,114 @@ async function researchDebug(opts: { exp?: string; topic: string; symptom?: stri
   console.log(dest);
 }
 
+function docSlugify(raw: string | undefined, fallback: string): string {
+  const cleaned = (raw ?? fallback)
+    .trim()
+    .toLowerCase()
+    .replace(/[\/\\:\0]/g, '-')
+    .replace(/\s+/g, '-')
+    .replace(/^-+|-+$/g, '')
+    .replace(/--+/g, '-');
+  return cleaned || fallback;
+}
+
+function titleFromSlug(slug: string): string {
+  return slug.replace(/-/g, ' ');
+}
+
+function today(): string {
+  return new Date().toISOString().slice(0, 10);
+}
+
+async function defaultDraftDestination(kind: string, context: {
+  date: string;
+  topic: string;
+  exp_id: string | null;
+  exp_dir: string | null;
+}): Promise<string> {
+  if (['objective', 'roadmap', 'progress'].includes(kind) && context.exp_dir) {
+    return `${context.exp_dir}/${kind}.md`;
+  }
+  if (kind === 'monitor' || kind === 'deguard') {
+    return `${PATHS.REVIEWS}/${context.date}${context.exp_id ? `-${context.exp_id}` : ''}-${context.topic}-${kind}.md`;
+  }
+  if (kind === 'expert-consultation') {
+    return `${PATHS.HANDOFFS_OUTGOING}/${context.date}-${context.topic}-expert-consultation.md`;
+  }
+  if (kind === 'reply-summary') {
+    return `${PATHS.HANDOFFS}/summaries/${context.date}-${context.topic}-reply-summary.md`;
+  }
+  return `plans/${context.date}-${context.topic}-${kind}.md`;
+}
+
+async function draftVNextDoc(opts: {
+  kind: string;
+  topic?: string;
+  exp?: string;
+  title?: string;
+  totalGoal?: string;
+  stageGoal?: string;
+  out?: string;
+  overwrite?: boolean;
+  stage?: boolean;
+  json?: boolean;
+  specificAsk?: string;
+  problem?: string;
+  summary?: string;
+  outgoing?: string;
+  incoming?: string;
+}): Promise<void> {
+  const kind = opts.kind;
+  const templates: Record<string, string> = {
+    objective: 'objective.md.tmpl',
+    roadmap: 'roadmap.md.tmpl',
+    progress: 'progress.md.tmpl',
+    monitor: 'monitor.md.tmpl',
+    deguard: 'deguard.md.tmpl',
+    'expert-consultation': 'handoff-expert-consultation.md.tmpl',
+    'reply-summary': 'handoff-reply-summary.md.tmpl',
+  };
+  const template = templates[kind];
+  if (!template) throw new Error(`--kind must be one of: ${Object.keys(templates).join(', ')}`);
+
+  const expId = opts.exp ? ExpIdSchema.parse(opts.exp) : await currentExperimentId();
+  const expDir = expId ? await findExperimentDir(expId) : null;
+  if (expId && !expDir && opts.exp) throw new Error(`Experiment not found: ${expId}`);
+  const date = today();
+  const topic = docSlugify(opts.topic ?? opts.title ?? expId ?? kind, kind);
+  const title = opts.title ?? titleFromSlug(topic);
+  const dest = opts.out ?? await defaultDraftDestination(kind, { date, topic, exp_id: expId, exp_dir: expDir });
+  const projectName = await readFrontmatter(PATHS.PROJECT_MD)
+    .then((doc) => String(doc.frontmatter?.project ?? doc.frontmatter?.name ?? title))
+    .catch(() => title);
+
+  await renderToFile(template, dest, {
+    date,
+    created: new Date().toISOString(),
+    title,
+    project_name: projectName,
+    exp_id: expId ?? 'TBD',
+    total_goal: opts.totalGoal ?? 'Describe the total research goal.',
+    stage_goal: opts.stageGoal ?? 'Describe the current stage goal.',
+    specific_ask: opts.specificAsk ?? 'Give a diagnosis and recommend the next research-aligned action.',
+    problem_statement: opts.problem ?? 'Describe the problem, anomaly, or decision that needs expert judgment.',
+    summary: opts.summary ?? 'Summarize the incoming reply here.',
+    outgoing_path: opts.outgoing ?? 'handoffs/outgoing/<date-topic>.md',
+    incoming_path: opts.incoming ?? 'handoffs/incoming/<date-topic>.md',
+    evidence: ['Add the most relevant local result, log, paper, issue, or implementation evidence.'],
+    candidate_explanations: ['Add plausible explanations to evaluate.'],
+    constraints: ['Preserve the research objective and avoid unrelated defensive gates.'],
+    advice: ['Summarize advice from the incoming reply.'],
+    tasks: ['Extract concrete next actions from the incoming reply.'],
+    caveats: ['List caveats or uncertainty from the reply.'],
+    references: ['List references, papers, issues, or links mentioned in the reply.'],
+    next_action: 'Choose one research-aligned next action and record it in progress.md.',
+  }, { overwrite: Boolean(opts.overwrite) });
+  if (opts.stage) await rawGit(['add', dest]);
+  if (opts.json) jsonOut({ kind, path: dest, exp: expId ?? null });
+  else console.log(dest);
+}
+
 async function cleanupPr(opts: { exp: string; base?: string; json?: boolean }): Promise<void> {
   const branch = await rawGit(['branch', '--show-current']).then((s) => s.trim()).catch(() => 'HEAD');
   const base = opts.base ?? 'main';
@@ -1615,6 +1723,25 @@ program.command('research-debug')
   .option('--overwrite', 'overwrite existing report')
   .option('--stage', 'git add generated report')
   .action(async (opts) => researchDebug(opts).catch(fail));
+
+program.command('draft')
+  .description('Create a vNext objective, roadmap, progress, monitor, deguard, or handoff draft')
+  .argument('<kind>', 'objective | roadmap | progress | monitor | deguard | expert-consultation | reply-summary')
+  .option('--topic <name>', 'short topic for filename')
+  .option('--exp <id>', 'experiment id; defaults to .lablock/state/current-exp when present')
+  .option('--title <text>', 'human-readable title')
+  .option('--total-goal <text>', 'total research goal')
+  .option('--stage-goal <text>', 'current stage goal')
+  .option('--specific-ask <text>', 'expert consultation ask')
+  .option('--problem <text>', 'problem statement for expert consultation')
+  .option('--summary <text>', 'initial summary for reply-summary drafts')
+  .option('--outgoing <path>', 'source outgoing handoff path for reply-summary')
+  .option('--incoming <path>', 'incoming reply path for reply-summary')
+  .option('--out <path>', 'override destination path')
+  .option('--overwrite', 'overwrite existing draft')
+  .option('--stage', 'git add generated draft')
+  .option('--json', 'json output')
+  .action(async (kind, opts) => draftVNextDoc({ kind, ...opts }).catch(fail));
 
 program.command('cleanup-pr')
   .requiredOption('--exp <id>', 'experiment id')

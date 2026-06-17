@@ -299,6 +299,11 @@ LabLock skills 分两类：
 - `plans/<date>-<topic>-vnext-plan.md`。
 - 或 `experiments/<exp>/plan.md`、`roadmap.md`、`objective.md`。
 
+**草稿命令**：
+
+- `lablock draft objective --exp <exp-id> --topic <topic>`。
+- `lablock draft roadmap --exp <exp-id> --topic <topic>`。
+
 **下一步**：
 
 - `/lab-roadmap` 继续细化路线。
@@ -331,6 +336,10 @@ LabLock skills 分两类：
 
 - `plans/<date>-<topic>-roadmap.md`。
 - 或 `experiments/<exp>/roadmap.md`。
+
+**草稿命令**：
+
+- `lablock draft roadmap --exp <exp-id> --topic <topic>`。
 
 **下一步**：
 
@@ -798,6 +807,11 @@ LabLock skills 分两类：
 - 对话中的快速状态回答。
 - 必要时写 `reviews/YYYY-MM-DD-<exp>-monitor.md`。
 
+**草稿命令**：
+
+- `lablock draft monitor --exp <exp-id> --topic <topic>`。
+- `lablock draft progress --exp <exp-id> --topic <topic>`。
+
 **下一步**：
 
 - `/lab-handoff --mode=execution`。
@@ -830,6 +844,10 @@ LabLock skills 分两类：
 **主要输出**：
 
 - `reviews/YYYY-MM-DD-<exp>-deguard.md`。
+
+**草稿命令**：
+
+- `lablock draft deguard --exp <exp-id> --topic <topic>`。
 
 **下一步**：
 
@@ -864,6 +882,11 @@ LabLock skills 分两类：
 
 - `handoffs/outgoing/YYYY-MM-DD-<topic>.md`。
 - `handoffs/summaries/YYYY-MM-DD-<topic>.md`。
+
+**草稿命令**：
+
+- `lablock draft expert-consultation --topic <topic>`。
+- `lablock draft reply-summary --topic <topic> --incoming <path> --outgoing <path>`。
 
 **下一步**：
 

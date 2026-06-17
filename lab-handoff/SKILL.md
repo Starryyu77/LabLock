@@ -34,6 +34,13 @@ Optional:
 - `--exp=<exp-id>`: if the handoff is about a specific experiment. Auto-detected from `.lablock/state/current-exp` if not given.
 - `--branch`: after writing, also push to `handoff/<date>-<topic>` branch and print URL.
 
+Template-backed draft helpers:
+
+```bash
+lablock draft expert-consultation --topic <topic>
+lablock draft reply-summary --topic <topic> --incoming <path> --outgoing <path>
+```
+
 ## vNext Modes
 
 ### Mode: execution

@@ -47,6 +47,12 @@ related-skills:
 reviews/<date>-<exp>-deguard.md
 ```
 
+可用轻量草稿命令：
+
+```bash
+lablock draft deguard --exp <exp-id> --topic <topic>
+```
+
 ## 分析框架
 
 对每个可疑机制回答：

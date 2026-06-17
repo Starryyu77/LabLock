@@ -52,6 +52,13 @@ related-skills:
 reviews/<date>-<exp>-monitor.md
 ```
 
+可用轻量草稿命令：
+
+```bash
+lablock draft monitor --exp <exp-id> --topic <topic>
+lablock draft progress --exp <exp-id> --topic <topic>
+```
+
 ## 报告必须回答
 
 - 实验总目标

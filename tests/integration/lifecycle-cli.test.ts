@@ -55,6 +55,46 @@ afterEach(async () => {
 });
 
 describe('deterministic lifecycle CLI', () => {
+  test('draft creates vNext objective and expert handoff skeletons', async () => {
+    const objective = await run([
+      process.execPath,
+      lablock,
+      'draft',
+      'objective',
+      '--exp',
+      'exp-001',
+      '--topic',
+      'alignment',
+      '--total-goal',
+      'Improve agent research alignment.',
+      '--stage-goal',
+      'Create a monitorable objective.',
+    ], cwd);
+    expect(objective.stdout).toContain('experiments/exp-001-baseline/objective.md');
+    const objectiveBody = await readFile(join(cwd, 'experiments/exp-001-baseline/objective.md'), 'utf8');
+    expect(objectiveBody).toContain('Improve agent research alignment.');
+    expect(objectiveBody).toContain('Create a monitorable objective.');
+    expect(objectiveBody).toContain('Do not add broad defensive gates');
+
+    const handoff = await run([
+      process.execPath,
+      lablock,
+      'draft',
+      'expert-consultation',
+      '--topic',
+      'alignment-failure',
+      '--specific-ask',
+      'Diagnose why the experiment drifted.',
+      '--problem',
+      'The agent added unrelated validators instead of testing the hypothesis.',
+    ], cwd);
+    expect(handoff.stdout).toContain('handoffs/outgoing/');
+    const handoffPath = handoff.stdout.trim();
+    const handoffBody = await readFile(join(cwd, handoffPath), 'utf8');
+    expect(handoffBody).toContain('Diagnose why the experiment drifted.');
+    expect(handoffBody).toContain('The agent added unrelated validators instead of testing the hypothesis.');
+  });
+
   test('finalize, postmortem, and cleanup-pr dry-run', async () => {
     const finalize = await run([process.execPath, lablock, 'exp-finalize', '--exp', 'exp-001', '--status', 'killed'], cwd);
     expect(finalize.stderr).not.toContain('LabLock warning');
